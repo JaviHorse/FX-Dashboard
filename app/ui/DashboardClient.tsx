@@ -1,0 +1,1635 @@
+"use client";
+
+import { useEffect, useMemo, useState } from "react";
+import type { LatestRate } from "@/lib/fxApi";
+import { computeFxRiskMetrics } from "@/lib/fxMetrics";
+import {
+  XAxis,
+  YAxis,
+  Tooltip,
+  ResponsiveContainer,
+  CartesianGrid,
+  Brush,
+  AreaChart,
+  Area,
+  ReferenceLine,
+  Line,
+  LineChart,
+} from "recharts";
+
+type Props = { latest: LatestRate };
+
+// ========================================
+// CUSTOM HOOK: Animated Number Tick-Up
+// ========================================
+function useAnimatedNumber(target: number, duration = 800) {
+  const [current, setCurrent] = useState(target);
+  const [prevTarget, setPrevTarget] = useState(target);
+
+  useEffect(() => {
+    if (target === prevTarget) return;
+
+    setPrevTarget(target);
+    const start = current;
+    const diff = target - start;
+    const startTime = Date.now();
+
+    const animate = () => {
+      const elapsed = Date.now() - startTime;
+      const progress = Math.min(elapsed / duration, 1);
+
+      // Easing function (ease-out)
+      const easeOut = 1 - Math.pow(1 - progress, 3);
+
+      setCurrent(start + diff * easeOut);
+
+      if (progress < 1) {
+        requestAnimationFrame(animate);
+      }
+    };
+
+    requestAnimationFrame(animate);
+  }, [target, duration, current, prevTarget]);
+
+  return current;
+}
+
+// ========================================
+// MAIN COMPONENT
+// ========================================
+export default function DashboardClient({ latest }: Props) {
+  const [chartData, setChartData] = useState<{ date: string; rate: number }[]>([]);
+  const [modeLabel, setModeLabel] = useState("Last 90 Days");
+  const [loading, setLoading] = useState(true);
+
+  const [isDark, setIsDark] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const [activePreset, setActivePreset] = useState<"7D" | "30D" | "90D" | "YTD" | "CUSTOM">(
+    "90D"
+  );
+
+  const [showMA, setShowMA] = useState(false);
+  const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
+
+  // ========================================
+  // Scenario Simulator State
+  // ========================================
+  const [scenarioPct, setScenarioPct] = useState<number>(1.0); // percent move in USD/PHP
+  const [scenarioDirection, setScenarioDirection] = useState<"up" | "down">("up");
+  const [scenarioExposureType, setScenarioExposureType] = useState<"receivable" | "payable">(
+    "receivable"
+  );
+  const [scenarioExposureUsd, setScenarioExposureUsd] = useState<number>(100000); // USD exposure
+
+  useEffect(() => {
+    const saved = localStorage.getItem("theme");
+    if (saved === "dark") setIsDark(true);
+  }, []);
+
+  const toggleTheme = () => {
+    setIsDark((prev) => {
+      const next = !prev;
+      localStorage.setItem("theme", next ? "dark" : "light");
+      return next;
+    });
+  };
+
+  const theme = {
+    bg: isDark ? "#0f172a" : "#f8fafc",
+    text: isDark ? "#f1f5f9" : "#1e293b",
+    textMuted: isDark ? "#94a3b8" : "#64748b",
+    card: isDark ? "rgba(30, 41, 59, 0.7)" : "rgba(255, 255, 255, 0.8)",
+    border: isDark ? "rgba(255, 255, 255, 0.1)" : "rgba(226, 232, 240, 0.8)",
+    primary: "#6366f1",
+    accent: isDark ? "#818cf8" : "#4f46e5",
+    grid: isDark ? "rgba(255,255,255,0.05)" : "#f1f5f9",
+    success: "#22c55e",
+    danger: "#ef4444",
+  };
+
+  const cardStyle: React.CSSProperties = {
+    background: theme.card,
+    backdropFilter: "blur(12px)",
+    border: `1px solid ${theme.border}`,
+    borderRadius: "24px",
+    padding: "24px",
+    boxShadow: isDark
+      ? "0 10px 30px -10px rgba(0,0,0,0.5)"
+      : "0 4px 20px -5px rgba(0,0,0,0.05)",
+    transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
+    color: theme.text,
+  };
+
+  const latestISO = useMemo(() => latest.date.slice(0, 10), [latest.date]);
+  const defaultEnd = latestISO;
+  const defaultStart = useMemo(() => isoDaysAgo(defaultEnd, 89), [defaultEnd]);
+
+  const [start, setStart] = useState(defaultStart);
+  const [end, setEnd] = useState(defaultEnd);
+
+  function normalizeRange(s: string, e: string) {
+    if (!s || !e) return { s, e };
+    return s <= e ? { s, e } : { s: e, e: s };
+  }
+
+  async function loadDefault90() {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/rates/last?n=90", { cache: "no-store" });
+      if (!res.ok) {
+        const text = await res.text().catch(() => "");
+        throw new Error(`Last 90 fetch failed (${res.status}) ${text}`);
+      }
+
+      const json = await res.json();
+      const next = (json.data ?? []).map((p: any) => ({
+        date: String(p.date).slice(0, 10),
+        rate: Number(p.rate),
+      }));
+
+      if (!next.length) throw new Error("No data returned for last 90 days.");
+
+      setChartData(next);
+      setModeLabel("Last 90 Days");
+      setActivePreset("90D");
+
+      setStart(defaultStart);
+      setEnd(defaultEnd);
+    } catch (e: any) {
+      setError(e?.message ?? "Failed to load last 90 days.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    loadDefault90();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const rates = useMemo(() => chartData.map((d) => d.rate).filter(Number.isFinite), [chartData]);
+  const last = chartData[chartData.length - 1];
+  const prev = chartData[chartData.length - 2];
+
+  const dailyDelta = prev && last ? last.rate - prev.rate : 0;
+  const dailyPct = prev && last ? (dailyDelta / prev.rate) * 100 : 0;
+
+  const minRange = rates.length ? Math.min(...rates) : 0;
+  const maxRange = rates.length ? Math.max(...rates) : 0;
+
+  // ========================================
+  // MOVING AVERAGE CALCULATION (7-day)
+  // ========================================
+  const chartDataWithMA = useMemo(() => {
+    if (!showMA || chartData.length < 7) return chartData;
+
+    return chartData.map((point, i) => {
+      if (i < 6) return { ...point, ma: null };
+
+      const last7 = chartData.slice(i - 6, i + 1);
+      const ma = last7.reduce((sum, p) => sum + p.rate, 0) / 7;
+
+      return { ...point, ma };
+    });
+  }, [chartData, showMA]);
+
+  // ========================================
+  // MARKET STATUS MESSAGE
+  // ========================================
+  const marketStatus = useMemo(() => {
+    const today = new Date().toISOString().split("T")[0];
+    const latestDate = latestISO;
+
+    if (latestDate < today) {
+      const daysSince = Math.floor(
+        (new Date(today).getTime() - new Date(latestDate).getTime()) / (1000 * 60 * 60 * 24)
+      );
+      return {
+        isClosed: true,
+        message: `Markets closed. Latest BSP business day: ${new Date(latestDate).toLocaleDateString()} (${daysSince} day${
+          daysSince > 1 ? "s" : ""
+        } ago)`,
+      };
+    }
+
+    return { isClosed: false, message: "Live market data" };
+  }, [latestISO]);
+
+  async function applyRange(s: string, e: string, label?: string, preset?: typeof activePreset) {
+    const norm = normalizeRange(s, e);
+    s = norm.s;
+    e = norm.e;
+
+    setStart(s);
+    setEnd(e);
+
+    setLoading(true);
+    setError(null);
+
+    try {
+      const res = await fetch(
+        `/api/rates/range?start=${encodeURIComponent(s)}&end=${encodeURIComponent(e)}`,
+        { cache: "no-store" }
+      );
+
+      if (!res.ok) {
+        const text = await res.text().catch(() => "");
+        throw new Error(`Range fetch failed (${res.status}) ${text}`);
+      }
+
+      const json = await res.json();
+      const next = (json.data ?? []).map((p: any) => ({
+        date: String(p.date).slice(0, 10),
+        rate: Number(p.rate),
+      }));
+
+      if (!next.length) throw new Error("No data found for that range.");
+
+      setChartData(next);
+      setModeLabel(label ?? "Custom Range");
+      setActivePreset(preset ?? "CUSTOM");
+    } catch (e: any) {
+      setError(e?.message ?? "Failed to load range.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  // ========================================
+  // MINI SPARKLINE COMPONENT
+  // ========================================
+  const MiniSparkline = ({ data, color }: { data: { rate: number }[]; color: string }) => {
+    if (!data.length) return null;
+
+    return (
+      <div style={{ height: 40, width: "100%", marginTop: 8 }}>
+        <ResponsiveContainer width="100%" height="100%">
+          <LineChart data={data}>
+            <Line
+              type="monotone"
+              dataKey="rate"
+              stroke={color}
+              strokeWidth={2}
+              dot={false}
+              isAnimationActive={false}
+            />
+          </LineChart>
+        </ResponsiveContainer>
+      </div>
+    );
+  };
+
+  // ========================================
+  // KPI CARD WITH ANIMATION + SPARKLINE
+  // ========================================
+  const KpiCard = ({
+    title,
+    value,
+    sub,
+    trend,
+    sparklineData,
+  }: {
+    title: string;
+    value: string;
+    sub: string;
+    trend: number;
+    sparklineData?: { rate: number }[];
+  }) => {
+    const numericValue = parseFloat(value.replace(/[^0-9.-]/g, ""));
+    const animatedValue = useAnimatedNumber(Number.isFinite(numericValue) ? numericValue : 0);
+    const displayValue = value.includes("₱")
+      ? `₱${fmt3(animatedValue)}`
+      : value.startsWith("+") || value.startsWith("-")
+      ? (animatedValue >= 0 ? "+" : "") + fmt3(animatedValue)
+      : fmt3(animatedValue);
+
+    return (
+      <div
+        style={{
+          ...cardStyle,
+          position: "relative",
+          overflow: "hidden",
+        }}
+      >
+        <div
+          style={{
+            color: theme.textMuted,
+            fontSize: 11,
+            fontWeight: 700,
+            textTransform: "uppercase",
+            letterSpacing: 1,
+          }}
+        >
+          {title}
+        </div>
+        <div style={{ fontSize: 28, fontWeight: 800, margin: "12px 0", color: theme.text }}>
+          {displayValue}
+        </div>
+        <div
+          style={{
+            fontSize: 13,
+            fontWeight: 600,
+            color: trend > 0 ? theme.danger : trend < 0 ? theme.success : theme.textMuted,
+          }}
+        >
+          {sub}
+        </div>
+
+        {sparklineData && sparklineData.length > 0 && (
+          <MiniSparkline
+            data={sparklineData}
+            color={trend > 0 ? theme.danger : trend < 0 ? theme.success : theme.primary}
+          />
+        )}
+      </div>
+    );
+  };
+
+  // Sparkline data for KPIs (last 30 points)
+  const sparklineData = useMemo(() => {
+    const last30 = chartData.slice(-30);
+    return last30.length > 0 ? last30 : [];
+  }, [chartData]);
+
+  // ========================================
+  // Risk Metrics (computed from chartData)
+  // ========================================
+  const risk = useMemo(() => computeFxRiskMetrics(chartData), [chartData]);
+
+  const vol30 = risk.vol30Ann;
+  const vol90 = risk.vol90Ann;
+  const maxDd = risk.maxDrawdown;
+  const worstMove = risk.worstDailyMove;
+  const bestMove = risk.bestDailyMove;
+
+  // ========================================
+  // Regime window selection (changes with preset)
+  // ========================================
+  function regimeWindowReturns(preset: typeof activePreset) {
+    if (preset === "7D") return 7;
+    if (preset === "30D") return 30;
+    if (preset === "90D") return 90;
+    // For YTD/CUSTOM: use a stable default; still reflects window because vol inputs come from chartData
+    return 90;
+  }
+
+  // ========================================
+  // Volatility Regime Badge (changes with preset)
+  // ========================================
+  const volRegime = useMemo(() => {
+    const windowN = regimeWindowReturns(activePreset);
+
+    const volForWindow = windowN <= 30 ? vol30 : vol90;
+
+    if (volForWindow == null) {
+      return {
+        label: "—",
+        helper: "Not enough data to classify volatility regime for this window.",
+        color: theme.textMuted,
+        bg: isDark ? "rgba(148,163,184,0.10)" : "rgba(100,116,139,0.10)",
+        border: isDark ? "rgba(148,163,184,0.20)" : "rgba(100,116,139,0.25)",
+        volText: "",
+      };
+    }
+
+    const v = volForWindow; // decimal (0.12 = 12%)
+    const volText = `• ${fmtPct2(v * 100)}%`;
+
+    // Thresholds (annualized):
+    // <8% low, 8–15% normal, >15% high
+    if (v < 0.08) {
+      return {
+        label: "Low Vol",
+        helper: `Volatility based on up to ${windowN} daily returns (annualized).`,
+        color: isDark ? "#86efac" : "#166534",
+        bg: isDark ? "rgba(34,197,94,0.12)" : "rgba(220,252,231,0.9)",
+        border: isDark ? "rgba(34,197,94,0.25)" : "rgba(34,197,94,0.35)",
+        volText,
+      };
+    }
+    if (v < 0.15) {
+      return {
+        label: "Normal Vol",
+        helper: `Volatility based on up to ${windowN} daily returns (annualized).`,
+        color: isDark ? "#fde68a" : "#92400e",
+        bg: isDark ? "rgba(251,191,36,0.12)" : "rgba(254,243,199,0.9)",
+        border: isDark ? "rgba(251,191,36,0.25)" : "rgba(251,191,36,0.35)",
+        volText,
+      };
+    }
+    return {
+      label: "High Vol",
+      helper: `Volatility based on up to ${windowN} daily returns (annualized).`,
+      color: isDark ? "#fca5a5" : "#991b1b",
+      bg: isDark ? "rgba(239,68,68,0.12)" : "rgba(254,242,242,0.9)",
+      border: isDark ? "rgba(239,68,68,0.25)" : "rgba(239,68,68,0.35)",
+      volText,
+    };
+  }, [activePreset, vol30, vol90, isDark, theme]);
+
+  // ========================================
+  //  Scenario Simulator Calculations (uses current/latest rate)
+  // ========================================
+  const scenario = useMemo(() => {
+    // Prefer latest rate; fallback to last chart point if needed
+    const baseRate =
+      Number.isFinite(Number(latest?.rate))
+        ? Number(latest.rate)
+        : chartData[chartData.length - 1]?.rate ?? 0;
+
+    const rate = Number(baseRate) || 0;
+
+    const pct = Math.max(0, Number(scenarioPct) || 0) / 100;
+    const signedPct = scenarioDirection === "up" ? pct : -pct;
+
+    const shockedRate = rate * (1 + signedPct);
+    const exposureUsd = Math.max(0, Number(scenarioExposureUsd) || 0);
+
+    const baselinePhp = exposureUsd * rate;
+    const shockedPhp = exposureUsd * shockedRate;
+
+    const rawDeltaPhp = shockedPhp - baselinePhp;
+    const deltaPhp = scenarioExposureType === "receivable" ? rawDeltaPhp : -rawDeltaPhp;
+
+    return {
+      rate,
+      shockedRate,
+      exposureUsd,
+      baselinePhp,
+      shockedPhp,
+      deltaPhp,
+    };
+  }, [latest, chartData, scenarioPct, scenarioDirection, scenarioExposureUsd, scenarioExposureType]);
+
+  // ========================================
+  // Sensitivity Curve Data (P/L vs Shock %)
+  // ========================================
+  const selectedShockSignedPct = useMemo(() => {
+    const pct = Math.max(0, Number(scenarioPct) || 0);
+    return scenarioDirection === "up" ? pct : -pct; // in percent units
+  }, [scenarioPct, scenarioDirection]);
+
+  const sensitivityData = useMemo(() => {
+    const baseRate = scenario.rate || 0;
+    const exposureUsd = Math.max(0, Number(scenarioExposureUsd) || 0);
+
+    // Range of shocks (in % points): -5% to +5% in 0.5% steps
+    const minShock = -5;
+    const maxShock = 5;
+    const step = 0.5;
+
+    const rows: { shock: number; pnlPhp: number; shockedRate: number }[] = [];
+
+    for (let shock = minShock; shock <= maxShock + 1e-9; shock += step) {
+      const shockedRate = baseRate * (1 + shock / 100);
+
+      const baselinePhp = exposureUsd * baseRate;
+      const shockedPhp = exposureUsd * shockedRate;
+
+      const rawDelta = shockedPhp - baselinePhp;
+      const pnlPhp = scenarioExposureType === "receivable" ? rawDelta : -rawDelta;
+
+      rows.push({
+        shock: Number(shock.toFixed(1)),
+        pnlPhp,
+        shockedRate,
+      });
+    }
+
+    return rows;
+  }, [scenario.rate, scenarioExposureUsd, scenarioExposureType]);
+
+  const sensitivityYDomain = useMemo(() => {
+    if (!sensitivityData.length) return ["auto", "auto"] as const;
+    let min = Infinity;
+    let max = -Infinity;
+    for (const r of sensitivityData) {
+      if (!Number.isFinite(r.pnlPhp)) continue;
+      min = Math.min(min, r.pnlPhp);
+      max = Math.max(max, r.pnlPhp);
+    }
+    if (!Number.isFinite(min) || !Number.isFinite(max)) return ["auto", "auto"] as const;
+
+    // Add padding so the line isn't hugging the edges
+    const pad = Math.max(1, (max - min) * 0.12);
+    return [min - pad, max + pad] as const;
+  }, [sensitivityData]);
+
+  // ========================================
+  // Tooltip for Sensitivity Curve
+  // ========================================
+  const SensitivityTooltip = ({ active, payload, label }: any) => {
+    if (!active || !payload?.length) return null;
+
+    const row = payload[0]?.payload as { shock: number; pnlPhp: number; shockedRate: number };
+    if (!row) return null;
+
+    const shockText = `${row.shock >= 0 ? "+" : ""}${row.shock.toFixed(1)}%`;
+    const pnl = row.pnlPhp;
+
+    return (
+      <div
+        style={{
+          background: isDark ? "#1e293b" : "#ffffff",
+          color: isDark ? "#f1f5f9" : "#1e293b",
+          padding: "14px",
+          borderRadius: "16px",
+          border: `1px solid ${isDark ? "rgba(255,255,255,0.1)" : "#e2e8f0"}`,
+          boxShadow: "0 10px 15px -3px rgba(0,0,0,0.1)",
+          minWidth: 220,
+        }}
+      >
+        <div style={{ fontSize: 11, opacity: 0.65, marginBottom: 6, fontWeight: 800 }}>
+          Shock: {shockText}
+        </div>
+        <div style={{ fontSize: 12, opacity: 0.75, marginBottom: 8, fontWeight: 700 }}>
+          Shocked rate: ₱{fmt3(row.shockedRate)}
+        </div>
+        <div
+          style={{
+            fontSize: 18,
+            fontWeight: 950,
+            color: pnl >= 0 ? theme.success : theme.danger,
+          }}
+        >
+          {pnl >= 0 ? "+" : ""}
+          {pnl.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+          <span style={{ fontSize: 12, fontWeight: 800, opacity: 0.75, marginLeft: 6 }}>PHP</span>
+        </div>
+        <div style={{ marginTop: 8, fontSize: 12, color: theme.textMuted, fontWeight: 700 }}>
+          {scenarioExposureType === "receivable" ? "Receivable (Long USD)" : "Payable (Short USD)"}
+          {" • "}
+          USD {Math.max(0, Number(scenarioExposureUsd) || 0).toLocaleString(undefined, { maximumFractionDigits: 0 })}
+        </div>
+      </div>
+    );
+  };
+
+  return (
+    <main
+      style={{
+        backgroundColor: theme.bg,
+        minHeight: "100vh",
+        transition: "background 0.4s ease",
+        color: theme.text,
+        position: "relative",
+        overflow: "hidden",
+      }}
+    >
+      {/* ========================================
+          ANIMATED AURORA BACKGROUND
+          ======================================== */}
+      <div
+        style={{
+          position: "fixed",
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          opacity: isDark ? 0.15 : 0.08,
+          pointerEvents: "none",
+          zIndex: 0,
+        }}
+      >
+        <div className="aurora-bg" />
+      </div>
+
+      <style jsx>{`
+        @keyframes aurora {
+          0%,
+          100% {
+            transform: translate(0%, 0%) rotate(0deg);
+            opacity: 0.7;
+          }
+          33% {
+            transform: translate(30%, 20%) rotate(120deg);
+            opacity: 0.9;
+          }
+          66% {
+            transform: translate(-20%, 30%) rotate(240deg);
+            opacity: 0.8;
+          }
+        }
+
+        .aurora-bg {
+          width: 200%;
+          height: 200%;
+          background: radial-gradient(
+              ellipse at 20% 30%,
+              rgba(99, 102, 241, 0.4) 0%,
+              transparent 50%
+            ),
+            radial-gradient(
+              ellipse at 80% 70%,
+              rgba(129, 140, 248, 0.3) 0%,
+              transparent 50%
+            ),
+            radial-gradient(
+              ellipse at 50% 50%,
+              rgba(139, 92, 246, 0.2) 0%,
+              transparent 50%
+            );
+          animation: aurora 20s ease-in-out infinite;
+          filter: blur(40px);
+        }
+      `}</style>
+
+      <section
+        style={{
+          display: "grid",
+          gap: 32,
+          padding: "40px 20px",
+          maxWidth: 1200,
+          margin: "0 auto",
+          fontFamily: "Inter, sans-serif",
+          position: "relative",
+          zIndex: 1,
+        }}
+      >
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            flexWrap: "wrap",
+            gap: 20,
+          }}
+        >
+          <div>
+            <h1 style={{ fontSize: 40, fontWeight: 900, margin: 0, letterSpacing: "-1.5px" }}>
+              Peso Pilot
+            </h1>
+            <p style={{ color: theme.textMuted, margin: "4px 0 0 0", fontSize: 16 }}>
+              USD/PHP Market Analytics by Javier Macasaet and Unno Marquez
+            </p>
+
+            {/* ========================================
+                MARKET STATUS MESSAGE
+                ======================================== */}
+            <div
+              style={{
+                marginTop: 8,
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 8,
+                background: marketStatus.isClosed
+                  ? isDark
+                    ? "rgba(251, 191, 36, 0.1)"
+                    : "rgba(254, 243, 199, 0.9)"
+                  : isDark
+                  ? "rgba(34, 197, 94, 0.1)"
+                  : "rgba(220, 252, 231, 0.9)",
+                padding: "6px 12px",
+                borderRadius: 12,
+                border: `1px solid ${
+                  marketStatus.isClosed
+                    ? isDark
+                      ? "rgba(251, 191, 36, 0.3)"
+                      : "rgba(251, 191, 36, 0.5)"
+                    : isDark
+                    ? "rgba(34, 197, 94, 0.3)"
+                    : "rgba(34, 197, 94, 0.5)"
+                }`,
+              }}
+            >
+              <div
+                style={{
+                  width: 6,
+                  height: 6,
+                  borderRadius: "50%",
+                  background: marketStatus.isClosed ? "#fbbf24" : "#22c55e",
+                  boxShadow: `0 0 8px ${marketStatus.isClosed ? "#fbbf24" : "#22c55e"}`,
+                }}
+              />
+              <span
+                style={{
+                  fontSize: 12,
+                  fontWeight: 600,
+                  color: marketStatus.isClosed
+                    ? isDark
+                      ? "#fbbf24"
+                      : "#92400e"
+                    : isDark
+                    ? "#22c55e"
+                    : "#166534",
+                }}
+              >
+                {marketStatus.message}
+              </span>
+            </div>
+          </div>
+
+          <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
+            <button
+              onClick={toggleTheme}
+              style={{
+                background: theme.card,
+                border: `1px solid ${theme.border}`,
+                padding: "10px",
+                borderRadius: "50%",
+                cursor: "pointer",
+                fontSize: 20,
+                width: 45,
+                height: 45,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                color: theme.text,
+              }}
+              aria-label="Toggle theme"
+              title="Toggle theme"
+            >
+              {isDark ? "🌞" : "🌙"}
+            </button>
+
+            <div
+              style={{
+                display: "flex",
+                gap: 4,
+                background: theme.card,
+                padding: 4,
+                borderRadius: 14,
+                border: `1px solid ${theme.border}`,
+              }}
+            >
+              {(["7D", "30D", "90D", "YTD"] as const).map((p) => (
+                <button
+                  key={p}
+                  disabled={loading}
+                  onClick={() => {
+                    if (p === "90D") {
+                      loadDefault90();
+                      return;
+                    }
+
+                    if (p === "YTD") {
+                      const year = defaultEnd.slice(0, 4);
+                      const s = `${year}-01-01`;
+                      applyRange(s, defaultEnd, "Year to Date", "YTD");
+                      return;
+                    }
+
+                    const days = p === "7D" ? 6 : 29;
+                    const s = isoDaysAgo(defaultEnd, days);
+                    applyRange(s, defaultEnd, p === "7D" ? "Last 7 Days" : "Last 30 Days", p);
+                  }}
+                  style={{
+                    border: "none",
+                    background: activePreset === p ? theme.primary : "transparent",
+                    color: activePreset === p ? "white" : theme.textMuted,
+                    borderRadius: 10,
+                    padding: "8px 16px",
+                    cursor: loading ? "not-allowed" : "pointer",
+                    fontWeight: 700,
+                    transition: "0.2s",
+                  }}
+                >
+                  {p}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {error && (
+          <div
+            style={{
+              ...cardStyle,
+              borderColor: "rgba(239, 68, 68, 0.35)",
+              background: isDark ? "rgba(127,29,29,0.22)" : "rgba(254,242,242,0.9)",
+              color: isDark ? "#fecaca" : "#991b1b",
+            }}
+          >
+            <div style={{ fontWeight: 900, marginBottom: 6 }}>Error</div>
+            <div style={{ fontSize: 13, lineHeight: 1.4 }}>{error}</div>
+          </div>
+        )}
+
+        {/* ========================================
+            KPI CARDS WITH SPARKLINES
+            ======================================== */}
+        <div
+          style={{
+            display: "grid",
+            gap: 20,
+            gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
+          }}
+        >
+          <KpiCard
+            title="Live Rate"
+            value={`₱${fmt3(Number(latest.rate))}`}
+            sub={new Date(latest.date).toLocaleDateString()}
+            trend={dailyDelta}
+            sparklineData={sparklineData}
+          />
+          <KpiCard
+            title="24h Change"
+            value={(dailyDelta >= 0 ? "+" : "") + fmt3(dailyDelta)}
+            sub={(dailyPct >= 0 ? "↑ " : "↓ ") + fmtPct2(dailyPct) + "%"}
+            trend={dailyDelta}
+            sparklineData={sparklineData}
+          />
+          <KpiCard
+            title="Range Low"
+            value={`₱${fmt3(minRange)}`}
+            sub="Period Min"
+            trend={0}
+            sparklineData={sparklineData}
+          />
+          <KpiCard
+            title="Range High"
+            value={`₱${fmt3(maxRange)}`}
+            sub="Period Max"
+            trend={0}
+            sparklineData={sparklineData}
+          />
+        </div>
+
+        {/* ========================================
+            MAIN CHART WITH ENHANCEMENTS
+            ======================================== */}
+        <div style={{ ...cardStyle, height: 500, display: "flex", flexDirection: "column" }}>
+          <div
+            style={{
+              marginBottom: 24,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              flexWrap: "wrap",
+              gap: 12,
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+              <div
+                style={{
+                  width: 10,
+                  height: 10,
+                  borderRadius: "50%",
+                  background: "#22c55e",
+                  boxShadow: "0 0 10px #22c55e",
+                }}
+              />
+              <span style={{ fontWeight: 800, fontSize: 18, letterSpacing: -0.5 }}>
+                {modeLabel} Overview
+              </span>
+
+              {/* Volatility Regime Badge (changes with preset) */}
+              <span
+                title={volRegime.helper}
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 6,
+                  padding: "6px 10px",
+                  borderRadius: 999,
+                  border: `1px solid ${volRegime.border}`,
+                  background: volRegime.bg,
+                  color: volRegime.color,
+                  fontSize: 12,
+                  fontWeight: 800,
+                  letterSpacing: 0.2,
+                }}
+              >
+                <span
+                  style={{
+                    width: 6,
+                    height: 6,
+                    borderRadius: "50%",
+                    background: volRegime.color,
+                    boxShadow: `0 0 10px ${volRegime.color}`,
+                    opacity: 0.9,
+                  }}
+                />
+                {volRegime.label}
+                {volRegime.volText && (
+                  <span style={{ marginLeft: 6, opacity: 0.75, fontWeight: 800 }}>
+                    {volRegime.volText}
+                  </span>
+                )}
+              </span>
+
+              {loading && (
+                <span style={{ fontSize: 12, color: theme.textMuted, marginLeft: 8 }}>Loading…</span>
+              )}
+            </div>
+
+            {/* ========================================
+                MOVING AVERAGE TOGGLE
+                ======================================== */}
+            <button
+              onClick={() => setShowMA(!showMA)}
+              disabled={chartData.length < 7}
+              style={{
+                background: showMA ? theme.primary : "transparent",
+                color: showMA ? "white" : theme.textMuted,
+                border: `1px solid ${showMA ? theme.primary : theme.border}`,
+                borderRadius: 10,
+                padding: "6px 12px",
+                fontSize: 12,
+                fontWeight: 700,
+                cursor: chartData.length < 7 ? "not-allowed" : "pointer",
+                opacity: chartData.length < 7 ? 0.5 : 1,
+                transition: "all 0.2s",
+              }}
+              title={chartData.length < 7 ? "Need 7+ data points" : "Toggle 7-day moving average"}
+            >
+              {showMA ? "✓ " : ""}7-Day MA
+            </button>
+          </div>
+
+          <div style={{ flex: 1, width: "100%" }}>
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart
+                data={chartDataWithMA}
+                onMouseMove={(e: any) => {
+                  if (e && e.activeTooltipIndex !== undefined) {
+                    setHoveredIndex(e.activeTooltipIndex);
+                  }
+                }}
+                onMouseLeave={() => setHoveredIndex(null)}
+              >
+                <defs>
+                  <linearGradient id="colorRate" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor={theme.primary} stopOpacity={0.4} />
+                    <stop offset="95%" stopColor={theme.primary} stopOpacity={0} />
+                  </linearGradient>
+                </defs>
+
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={theme.grid} />
+
+                <XAxis
+                  dataKey="date"
+                  axisLine={false}
+                  tickLine={false}
+                  tick={{ fontSize: 11, fill: theme.textMuted }}
+                  minTickGap={40}
+                />
+
+                <YAxis
+                  domain={["auto", "auto"]}
+                  orientation="right"
+                  axisLine={false}
+                  tickLine={false}
+                  tick={{ fontSize: 11, fill: theme.textMuted }}
+                />
+
+                {/* ========================================
+                    CROSSHAIR HOVER LINE
+                    ======================================== */}
+                {hoveredIndex !== null && (
+                  <ReferenceLine
+                    x={chartDataWithMA[hoveredIndex]?.date}
+                    stroke={theme.textMuted}
+                    strokeDasharray="3 3"
+                    strokeOpacity={0.5}
+                  />
+                )}
+
+                <Tooltip content={<EnhancedTooltip isDark={isDark} theme={theme} chartData={chartData} />} />
+
+                <Area
+                  type="monotone"
+                  dataKey="rate"
+                  stroke={theme.primary}
+                  strokeWidth={4}
+                  fill="url(#colorRate)"
+                  animationDuration={1000}
+                />
+
+                {/* ========================================
+                    MOVING AVERAGE LINE
+                    ======================================== */}
+                {showMA && (
+                  <Line
+                    type="monotone"
+                    dataKey="ma"
+                    stroke={theme.accent}
+                    strokeWidth={2}
+                    strokeDasharray="5 5"
+                    dot={false}
+                    animationDuration={800}
+                  />
+                )}
+              </AreaChart>
+            </ResponsiveContainer>
+          </div>
+
+          <div style={{ marginTop: 20 }}>
+            <Brush
+              dataKey="date"
+              height={30}
+              stroke={theme.primary}
+              fill={theme.card}
+              travellerWidth={10}
+            />
+          </div>
+        </div>
+
+        {/* ========================================
+            RISK METRICS PANEL (UNDER GRAPH)
+            ======================================== */}
+        <div style={{ display: "grid", gap: 14 }}>
+          <div
+            style={{
+              display: "flex",
+              alignItems: "baseline",
+              justifyContent: "space-between",
+              gap: 12,
+              flexWrap: "wrap",
+            }}
+          >
+            <div style={{ fontWeight: 900, letterSpacing: -0.5, fontSize: 16 }}>Risk Metrics</div>
+            <div style={{ fontSize: 12, color: theme.textMuted, fontWeight: 700 }}>
+              Based on daily moves in current window • Points: {risk.points}
+            </div>
+          </div>
+
+          <div
+            style={{
+              display: "grid",
+              gap: 20,
+              gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+            }}
+          >
+            <RiskCard
+              title="30D Volatility"
+              value={vol30 == null ? "—" : `${fmtPct2(vol30 * 100)}%`}
+              sub="Rolling (annualized) • up to last 30 moves"
+              cardStyle={cardStyle}
+              theme={theme}
+            />
+            <RiskCard
+              title="90D Volatility"
+              value={vol90 == null ? "—" : `${fmtPct2(vol90 * 100)}%`}
+              sub="Rolling (annualized) • up to last 90 moves"
+              cardStyle={cardStyle}
+              theme={theme}
+            />
+            <RiskCard
+              title="Max Drawdown"
+              value={maxDd == null ? "—" : `${fmtPct2(maxDd * 100)}%`}
+              sub="Worst peak-to-trough drop"
+              cardStyle={cardStyle}
+              theme={theme}
+            />
+            <RiskCard
+              title="Worst / Best Day"
+              value={
+                worstMove == null || bestMove == null
+                  ? "—"
+                  : `${fmtPct2(worstMove * 100)}% / ${fmtPct2(bestMove * 100)}%`
+              }
+              sub="Largest 1-day % move in window"
+              cardStyle={cardStyle}
+              theme={theme}
+            />
+          </div>
+        </div>
+
+        {/* ========================================
+            SCENARIO SIMULATOR
+            ======================================== */}
+        <div style={{ display: "grid", gap: 14 }}>
+          <div
+            style={{
+              display: "flex",
+              alignItems: "baseline",
+              justifyContent: "space-between",
+              gap: 12,
+              flexWrap: "wrap",
+            }}
+          >
+            <div style={{ fontWeight: 900, letterSpacing: -0.5, fontSize: 16 }}>Scenario Simulator</div>
+            <div style={{ fontSize: 12, color: theme.textMuted, fontWeight: 700 }}>
+              Sensitivity analysis using current rate • {Number.isFinite(scenario.rate) ? `₱${fmt3(scenario.rate)}` : "—"}
+            </div>
+          </div>
+
+          <div style={{ ...cardStyle, padding: 20, display: "grid", gap: 16 }}>
+            <div style={{ color: theme.textMuted, fontSize: 13, fontWeight: 700 }}>
+              Simulate USD/PHP moves and estimate the PHP impact on a USD exposure.
+            </div>
+
+            <div style={{ display: "grid", gap: 16, gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))" }}>
+              {/* Exposure */}
+              <div
+                style={{
+                  border: `1px solid ${theme.border}`,
+                  borderRadius: 18,
+                  padding: 16,
+                  background: isDark ? "rgba(15,23,42,0.35)" : "rgba(248,250,252,0.6)",
+                }}
+              >
+                <div
+                  style={{
+                    fontSize: 12,
+                    fontWeight: 900,
+                    letterSpacing: 0.6,
+                    textTransform: "uppercase",
+                    color: theme.textMuted,
+                  }}
+                >
+                  Exposure
+                </div>
+
+                <div style={{ marginTop: 10, display: "flex", gap: 8, flexWrap: "wrap" }}>
+                  <button
+                    onClick={() => setScenarioExposureType("receivable")}
+                    style={{
+                      ...btnStyle,
+                      background: scenarioExposureType === "receivable" ? theme.primary : "transparent",
+                      color: scenarioExposureType === "receivable" ? "white" : theme.textMuted,
+                      border: `1px solid ${scenarioExposureType === "receivable" ? theme.primary : theme.border}`,
+                      padding: "8px 12px",
+                    }}
+                  >
+                    USD Receivable (Long USD)
+                  </button>
+                  <button
+                    onClick={() => setScenarioExposureType("payable")}
+                    style={{
+                      ...btnStyle,
+                      background: scenarioExposureType === "payable" ? theme.primary : "transparent",
+                      color: scenarioExposureType === "payable" ? "white" : theme.textMuted,
+                      border: `1px solid ${scenarioExposureType === "payable" ? theme.primary : theme.border}`,
+                      padding: "8px 12px",
+                    }}
+                  >
+                    USD Payable (Short USD)
+                  </button>
+                </div>
+
+                <div style={{ marginTop: 12 }}>
+                  <div style={{ fontSize: 12, fontWeight: 800, color: theme.textMuted, marginBottom: 6 }}>
+                    Exposure Amount (USD)
+                  </div>
+                  <input
+                    type="number"
+                    min={0}
+                    value={scenarioExposureUsd}
+                    onChange={(e) => setScenarioExposureUsd(Number(e.target.value))}
+                    style={{
+                      ...inputStyle,
+                      width: "100%",
+                      background: theme.card,
+                      color: theme.text,
+                      borderColor: theme.border,
+                    }}
+                    placeholder="e.g., 100000"
+                  />
+                </div>
+              </div>
+
+              {/* Market Move */}
+              <div
+                style={{
+                  border: `1px solid ${theme.border}`,
+                  borderRadius: 18,
+                  padding: 16,
+                  background: isDark ? "rgba(15,23,42,0.35)" : "rgba(248,250,252,0.6)",
+                }}
+              >
+                <div
+                  style={{
+                    fontSize: 12,
+                    fontWeight: 900,
+                    letterSpacing: 0.6,
+                    textTransform: "uppercase",
+                    color: theme.textMuted,
+                  }}
+                >
+                  Market Move
+                </div>
+
+                <div style={{ marginTop: 10, display: "flex", gap: 8, flexWrap: "wrap" }}>
+                  <button
+                    onClick={() => setScenarioDirection("up")}
+                    style={{
+                      ...btnStyle,
+                      background: scenarioDirection === "up" ? theme.primary : "transparent",
+                      color: scenarioDirection === "up" ? "white" : theme.textMuted,
+                      border: `1px solid ${scenarioDirection === "up" ? theme.primary : theme.border}`,
+                      padding: "8px 12px",
+                    }}
+                  >
+                    USD Strengthens (+)
+                  </button>
+                  <button
+                    onClick={() => setScenarioDirection("down")}
+                    style={{
+                      ...btnStyle,
+                      background: scenarioDirection === "down" ? theme.primary : "transparent",
+                      color: scenarioDirection === "down" ? "white" : theme.textMuted,
+                      border: `1px solid ${scenarioDirection === "down" ? theme.primary : theme.border}`,
+                      padding: "8px 12px",
+                    }}
+                  >
+                    USD Weakens (−)
+                  </button>
+                </div>
+
+                <div style={{ marginTop: 12 }}>
+                  <div style={{ fontSize: 12, fontWeight: 800, color: theme.textMuted, marginBottom: 6 }}>
+                    Shock Size (%)
+                  </div>
+
+                  <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
+                    <input
+                      type="range"
+                      min={0}
+                      max={10}
+                      step={0.1}
+                      value={scenarioPct}
+                      onChange={(e) => setScenarioPct(Number(e.target.value))}
+                      style={{ width: "100%" }}
+                    />
+                    <input
+                      type="number"
+                      min={0}
+                      max={100}
+                      step={0.1}
+                      value={scenarioPct}
+                      onChange={(e) => setScenarioPct(Number(e.target.value))}
+                      style={{
+                        ...inputStyle,
+                        width: 90,
+                        background: theme.card,
+                        color: theme.text,
+                        borderColor: theme.border,
+                        padding: "8px 10px",
+                      }}
+                    />
+                  </div>
+
+                  <div style={{ marginTop: 6, fontSize: 12, color: theme.textMuted, fontWeight: 700 }}>
+                    Base Rate: ₱{fmt3(scenario.rate)} → Shocked: ₱{fmt3(scenario.shockedRate)}
+                  </div>
+                </div>
+              </div>
+
+              {/* Results */}
+              <div
+                style={{
+                  border: `1px solid ${theme.border}`,
+                  borderRadius: 18,
+                  padding: 16,
+                  background: isDark ? "rgba(15,23,42,0.35)" : "rgba(248,250,252,0.6)",
+                }}
+              >
+                <div
+                  style={{
+                    fontSize: 12,
+                    fontWeight: 900,
+                    letterSpacing: 0.6,
+                    textTransform: "uppercase",
+                    color: theme.textMuted,
+                  }}
+                >
+                  Results
+                </div>
+
+                <div style={{ marginTop: 12, display: "grid", gap: 10 }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", gap: 10 }}>
+                    <span style={{ fontSize: 12, color: theme.textMuted, fontWeight: 800 }}>Baseline (PHP)</span>
+                    <span style={{ fontSize: 14, fontWeight: 900 }}>
+                      {scenario.baselinePhp.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                    </span>
+                  </div>
+
+                  <div style={{ display: "flex", justifyContent: "space-between", gap: 10 }}>
+                    <span style={{ fontSize: 12, color: theme.textMuted, fontWeight: 800 }}>Shocked (PHP)</span>
+                    <span style={{ fontSize: 14, fontWeight: 900 }}>
+                      {scenario.shockedPhp.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                    </span>
+                  </div>
+
+                  <div style={{ height: 1, background: theme.border, opacity: 0.7, margin: "6px 0" }} />
+
+                  <div style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "baseline" }}>
+                    <span style={{ fontSize: 12, color: theme.textMuted, fontWeight: 900 }}>P/L Impact (PHP)</span>
+                    <span
+                      style={{
+                        fontSize: 16,
+                        fontWeight: 950,
+                        color: scenario.deltaPhp >= 0 ? theme.success : theme.danger,
+                      }}
+                    >
+                      {scenario.deltaPhp >= 0 ? "+" : ""}
+                      {scenario.deltaPhp.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                    </span>
+                  </div>
+
+                  <div style={{ marginTop: 8, fontSize: 12, color: theme.textMuted, fontWeight: 700, lineHeight: 1.35 }}>
+                    Interpretation: A{" "}
+                    <span style={{ color: theme.text, fontWeight: 900 }}>
+                      {scenarioDirection === "up" ? "+" : "−"}
+                      {scenarioPct.toFixed(1)}%
+                    </span>{" "}
+                    move in USD/PHP implies an estimated{" "}
+                    <span style={{ color: theme.text, fontWeight: 900 }}>
+                      {scenario.deltaPhp >= 0 ? "gain" : "loss"}
+                    </span>{" "}
+                    of{" "}
+                    <span style={{ color: theme.text, fontWeight: 900 }}>
+                      PHP {Math.abs(scenario.deltaPhp).toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                    </span>{" "}
+                    on a{" "}
+                    <span style={{ color: theme.text, fontWeight: 900 }}>
+                      USD {scenario.exposureUsd.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                    </span>{" "}
+                    {scenarioExposureType === "receivable" ? "receivable" : "payable"} exposure.
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* ========================================
+             FX SENSITIVITY CURVE (P/L vs Shock %)
+            ======================================== */}
+        <div style={{ display: "grid", gap: 14 }}>
+          <div
+            style={{
+              display: "flex",
+              alignItems: "baseline",
+              justifyContent: "space-between",
+              gap: 12,
+              flexWrap: "wrap",
+            }}
+          >
+            <div style={{ fontWeight: 900, letterSpacing: -0.5, fontSize: 16 }}>
+              FX Sensitivity Curve
+            </div>
+            <div style={{ fontSize: 12, color: theme.textMuted, fontWeight: 700 }}>
+              P/L impact (PHP) vs USD/PHP shock • Range: −5% to +5%
+            </div>
+          </div>
+
+          <div style={{ ...cardStyle, padding: 20 }}>
+            <div style={{ fontSize: 13, color: theme.textMuted, fontWeight: 700, marginBottom: 10 }}>
+              This curve visualizes how your estimated PHP P/L changes as USD/PHP moves. The vertical marker shows your current selected shock.
+            </div>
+
+            <div style={{ height: 280, width: "100%" }}>
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={sensitivityData} margin={{ top: 10, right: 20, bottom: 0, left: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={theme.grid} />
+
+                  <XAxis
+                    dataKey="shock"
+                    axisLine={false}
+                    tickLine={false}
+                    tick={{ fontSize: 11, fill: theme.textMuted }}
+                    tickFormatter={(v) => `${v >= 0 ? "+" : ""}${Number(v).toFixed(0)}%`}
+                    label={{
+                      value: "USD/PHP Shock (%)",
+                      position: "insideBottom",
+                      offset: -5,
+                      fill: theme.textMuted,
+                      fontSize: 11,
+                      fontWeight: 700,
+                    }}
+                  />
+
+                  <YAxis
+                    domain={sensitivityYDomain as any}
+                    axisLine={false}
+                    tickLine={false}
+                    tick={{ fontSize: 11, fill: theme.textMuted }}
+                    tickFormatter={(v) =>
+                      Number(v).toLocaleString(undefined, { maximumFractionDigits: 0 })
+                    }
+                    label={{
+                      value: "P/L Impact (PHP)",
+                      angle: -90,
+                      position: "insideLeft",
+                      fill: theme.textMuted,
+                      fontSize: 11,
+                      fontWeight: 700,
+                    }}
+                  />
+
+                  <Tooltip content={<SensitivityTooltip />} />
+
+                  {/* Break-even line */}
+                  <ReferenceLine y={0} stroke={theme.textMuted} strokeDasharray="4 4" strokeOpacity={0.55} />
+
+                  {/* Current selected shock marker */}
+                  <ReferenceLine
+                    x={Number(selectedShockSignedPct.toFixed(1))}
+                    stroke={theme.primary}
+                    strokeDasharray="6 6"
+                    strokeOpacity={0.9}
+                  />
+
+                  <Line
+                    type="monotone"
+                    dataKey="pnlPhp"
+                    stroke={theme.primary}
+                    strokeWidth={3}
+                    dot={false}
+                    isAnimationActive={true}
+                    animationDuration={650}
+                  />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+
+            <div style={{ marginTop: 10, fontSize: 12, color: theme.textMuted, fontWeight: 700 }}>
+              Current selection:{" "}
+              <span style={{ color: theme.text, fontWeight: 900 }}>
+                {selectedShockSignedPct >= 0 ? "+" : ""}
+                {selectedShockSignedPct.toFixed(1)}%
+              </span>{" "}
+              • Exposure:{" "}
+              <span style={{ color: theme.text, fontWeight: 900 }}>
+                USD {Math.max(0, Number(scenarioExposureUsd) || 0).toLocaleString(undefined, { maximumFractionDigits: 0 })}
+              </span>{" "}
+              • Type:{" "}
+              <span style={{ color: theme.text, fontWeight: 900 }}>
+                {scenarioExposureType === "receivable" ? "Receivable (Long USD)" : "Payable (Short USD)"}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* ========================================
+            CUSTOM RANGE FILTER
+            ======================================== */}
+        <div
+          style={{
+            ...cardStyle,
+            display: "flex",
+            gap: 15,
+            flexWrap: "wrap",
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+        >
+          <span style={{ fontSize: 12, fontWeight: 800, color: theme.textMuted, letterSpacing: 1 }}>
+            FILTER RANGE
+          </span>
+
+          <input
+            type="date"
+            value={start}
+            onChange={(e) => {
+              setActivePreset("CUSTOM");
+              setStart(e.target.value);
+            }}
+            style={{ ...inputStyle, background: theme.card, color: theme.text, borderColor: theme.border }}
+          />
+
+          <span style={{ opacity: 0.3 }}>→</span>
+
+          <input
+            type="date"
+            value={end}
+            onChange={(e) => {
+              setActivePreset("CUSTOM");
+              setEnd(e.target.value);
+            }}
+            style={{ ...inputStyle, background: theme.card, color: theme.text, borderColor: theme.border }}
+          />
+
+          <button
+            disabled={loading}
+            onClick={() => {
+              const norm = normalizeRange(start, end);
+              applyRange(norm.s, norm.e, "Custom Range", "CUSTOM");
+            }}
+            style={{
+              ...btnStyle,
+              background: theme.primary,
+              opacity: loading ? 0.7 : 1,
+              cursor: loading ? "not-allowed" : "pointer",
+            }}
+          >
+            Analyze Range
+          </button>
+        </div>
+      </section>
+    </main>
+  );
+}
+
+// ========================================
+// RISK CARD COMPONENT
+// ========================================
+function RiskCard({
+  title,
+  value,
+  sub,
+  cardStyle,
+  theme,
+}: {
+  title: string;
+  value: string;
+  sub: string;
+  cardStyle: React.CSSProperties;
+  theme: any;
+}) {
+  return (
+    <div style={{ ...cardStyle }}>
+      <div
+        style={{
+          color: theme.textMuted,
+          fontSize: 11,
+          fontWeight: 700,
+          textTransform: "uppercase",
+          letterSpacing: 1,
+        }}
+      >
+        {title}
+      </div>
+      <div style={{ fontSize: 26, fontWeight: 900, margin: "12px 0", color: theme.text }}>{value}</div>
+      <div style={{ fontSize: 13, fontWeight: 600, color: theme.textMuted }}>{sub}</div>
+    </div>
+  );
+}
+
+// ========================================
+// ENHANCED TOOLTIP WITH CHANGE INDICATOR
+// ========================================
+function EnhancedTooltip({ active, payload, label, isDark, theme, chartData }: any) {
+  if (!active || !payload?.length) return null;
+
+  const currentRate = payload[0].value;
+  const currentIndex = chartData.findIndex((d: any) => d.date === label);
+  const prevRate = currentIndex > 0 ? chartData[currentIndex - 1].rate : null;
+
+  const change = prevRate ? currentRate - prevRate : null;
+  const changePct = prevRate ? ((change ?? 0) / prevRate) * 100 : null;
+
+  return (
+    <div
+      style={{
+        background: isDark ? "#1e293b" : "#ffffff",
+        color: isDark ? "#f1f5f9" : "#1e293b",
+        padding: "16px",
+        borderRadius: "16px",
+        border: `1px solid ${isDark ? "rgba(255,255,255,0.1)" : "#e2e8f0"}`,
+        boxShadow: "0 10px 15px -3px rgba(0,0,0,0.1)",
+      }}
+    >
+      <div style={{ fontSize: 11, opacity: 0.6, marginBottom: 4, fontWeight: 600 }}>{label}</div>
+      <div style={{ fontSize: 22, fontWeight: 900, marginBottom: 8 }}>₱{fmt3(currentRate)}</div>
+
+      {change !== null && (
+        <div
+          style={{
+            fontSize: 12,
+            fontWeight: 700,
+            color: change > 0 ? theme.danger : change < 0 ? theme.success : theme.textMuted,
+            display: "flex",
+            alignItems: "center",
+            gap: 4,
+          }}
+        >
+          <span>{change > 0 ? "↑" : change < 0 ? "↓" : "→"}</span>
+          <span>
+            {change >= 0 ? "+" : ""}
+            {fmt3(change)}
+          </span>
+          <span style={{ opacity: 0.7 }}>
+            ({changePct && changePct >= 0 ? "+" : ""}
+            {fmtPct2(changePct ?? 0)}%)
+          </span>
+        </div>
+      )}
+    </div>
+  );
+}
+
+const inputStyle: React.CSSProperties = {
+  border: "1px solid",
+  borderRadius: "12px",
+  padding: "10px 16px",
+  fontSize: "14px",
+  fontWeight: 600,
+  outline: "none",
+};
+
+const btnStyle: React.CSSProperties = {
+  color: "white",
+  border: "none",
+  padding: "10px 24px",
+  borderRadius: "12px",
+  fontWeight: 700,
+  cursor: "pointer",
+};
+
+function fmt3(n: number) {
+  return Number.isFinite(n) ? n.toFixed(3) : "0.000";
+}
+function fmtPct2(n: number) {
+  return Number.isFinite(n) ? n.toFixed(2) : "0.00";
+}
+function isoDaysAgo(from: string, days: number) {
+  const d = new Date(from + "T00:00:00");
+  d.setDate(d.getDate() - days);
+  return d.toISOString().split("T")[0];
+}
