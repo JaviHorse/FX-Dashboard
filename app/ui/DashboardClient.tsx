@@ -296,9 +296,9 @@ export default function DashboardClient({ latest }: Props) {
       );
       return {
         isClosed: true,
-        message: `Markets closed. Latest BSP business day: ${new Date(latestDate).toLocaleDateString()} (${daysSince} day${
-          daysSince > 1 ? "s" : ""
-        } ago)`,
+        message: `Markets closed. Latest BSP business day: ${new Date(
+          latestDate
+        ).toLocaleDateString()} (${daysSince} day${daysSince > 1 ? "s" : ""} ago)`,
       };
     }
 
@@ -522,10 +522,9 @@ export default function DashboardClient({ latest }: Props) {
   // ========================================
   const baseSpot = useMemo(() => {
     // Prefer latest; fallback to last chart point
-    const s =
-      Number.isFinite(Number(latest?.rate))
-        ? Number(latest.rate)
-        : chartData[chartData.length - 1]?.rate ?? 0;
+    const s = Number.isFinite(Number(latest?.rate))
+      ? Number(latest.rate)
+      : chartData[chartData.length - 1]?.rate ?? 0;
     return Number(s) || 0;
   }, [latest, chartData]);
 
@@ -664,10 +663,9 @@ export default function DashboardClient({ latest }: Props) {
   // ========================================
   const scenario = useMemo(() => {
     // Prefer latest rate; fallback to last chart point if needed
-    const baseRate =
-      Number.isFinite(Number(latest?.rate))
-        ? Number(latest.rate)
-        : chartData[chartData.length - 1]?.rate ?? 0;
+    const baseRate = Number.isFinite(Number(latest?.rate))
+      ? Number(latest.rate)
+      : chartData[chartData.length - 1]?.rate ?? 0;
 
     const rate = Number(baseRate) || 0;
 
@@ -1224,9 +1222,7 @@ export default function DashboardClient({ latest }: Props) {
               </span>
 
               {loading && (
-                <span style={{ fontSize: 12, color: theme.textMuted, marginLeft: 8 }}>
-                  Loading…
-                </span>
+                <span style={{ fontSize: 12, color: theme.textMuted, marginLeft: 8 }}>Loading…</span>
               )}
             </div>
 
@@ -1344,8 +1340,76 @@ export default function DashboardClient({ latest }: Props) {
           </div>
         </div>
 
+        {/* ============================================================
+            ✅ ONLY CHANGE REQUESTED: SWAP SECTIONS
+            - Risk Metrics now appears where FX Outlook used to be
+            - FX Outlook now appears where Risk Metrics used to be
+            - No UI/logic changes inside each section
+           ============================================================ */}
+
         {/* ========================================
-            FX OUTLOOK (CONFIDENCE BANDS / FAN CHART)
+            RISK METRICS PANEL (SWAPPED UP)
+            ======================================== */}
+        <div style={{ display: "grid", gap: 14 }}>
+          <div
+            style={{
+              display: "flex",
+              alignItems: "baseline",
+              justifyContent: "space-between",
+              gap: 12,
+              flexWrap: "wrap",
+            }}
+          >
+            <div style={{ fontWeight: 900, letterSpacing: -0.5, fontSize: 16 }}>Risk Metrics</div>
+            <div style={{ fontSize: 12, color: theme.textMuted, fontWeight: 700 }}>
+              Based on daily moves in current window • Points: {risk.points}
+            </div>
+          </div>
+
+          <div
+            style={{
+              display: "grid",
+              gap: 20,
+              gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+            }}
+          >
+            <RiskCard
+              title="30D Volatility"
+              value={vol30 == null ? "—" : `${fmtPct2(vol30 * 100)}%`}
+              sub="Rolling (annualized) • up to last 30 moves"
+              cardStyle={cardStyle}
+              theme={theme}
+            />
+            <RiskCard
+              title="90D Volatility"
+              value={vol90 == null ? "—" : `${fmtPct2(vol90 * 100)}%`}
+              sub="Rolling (annualized) • up to last 90 moves"
+              cardStyle={cardStyle}
+              theme={theme}
+            />
+            <RiskCard
+              title="Max Drawdown"
+              value={maxDd == null ? "—" : `${fmtPct2(maxDd * 100)}%`}
+              sub="Worst peak-to-trough drop"
+              cardStyle={cardStyle}
+              theme={theme}
+            />
+            <RiskCard
+              title="Worst / Best Day"
+              value={
+                worstMove == null || bestMove == null
+                  ? "—"
+                  : `${fmtPct2(worstMove * 100)}% / ${fmtPct2(bestMove * 100)}%`
+              }
+              sub="Largest 1-day % move in window"
+              cardStyle={cardStyle}
+              theme={theme}
+            />
+          </div>
+        </div>
+
+        {/* ========================================
+            FX OUTLOOK (CONFIDENCE BANDS / FAN CHART) (SWAPPED DOWN)
             ======================================== */}
         <div style={{ display: "grid", gap: 14 }}>
           <div
@@ -1367,8 +1431,8 @@ export default function DashboardClient({ latest }: Props) {
 
           <div style={{ ...cardStyle, padding: 20 }}>
             <div style={{ fontSize: 13, color: theme.textMuted, fontWeight: 700, marginBottom: 10 }}>
-              Shaded bands show a probabilistic range of USD/PHP outcomes over the next 30 days based on the
-              current volatility regime (annualized) from your selected window.
+              Shaded bands show a probabilistic range of USD/PHP outcomes over the next 30 days based on
+              the current volatility regime (annualized) from your selected window.
             </div>
 
             {!fanAnnualVol ? (
@@ -1502,67 +1566,6 @@ export default function DashboardClient({ latest }: Props) {
                 </div>
               </>
             )}
-          </div>
-        </div>
-
-        {/* ========================================
-            RISK METRICS PANEL (UNDER GRAPH)
-            ======================================== */}
-        <div style={{ display: "grid", gap: 14 }}>
-          <div
-            style={{
-              display: "flex",
-              alignItems: "baseline",
-              justifyContent: "space-between",
-              gap: 12,
-              flexWrap: "wrap",
-            }}
-          >
-            <div style={{ fontWeight: 900, letterSpacing: -0.5, fontSize: 16 }}>Risk Metrics</div>
-            <div style={{ fontSize: 12, color: theme.textMuted, fontWeight: 700 }}>
-              Based on daily moves in current window • Points: {risk.points}
-            </div>
-          </div>
-
-          <div
-            style={{
-              display: "grid",
-              gap: 20,
-              gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
-            }}
-          >
-            <RiskCard
-              title="30D Volatility"
-              value={vol30 == null ? "—" : `${fmtPct2(vol30 * 100)}%`}
-              sub="Rolling (annualized) • up to last 30 moves"
-              cardStyle={cardStyle}
-              theme={theme}
-            />
-            <RiskCard
-              title="90D Volatility"
-              value={vol90 == null ? "—" : `${fmtPct2(vol90 * 100)}%`}
-              sub="Rolling (annualized) • up to last 90 moves"
-              cardStyle={cardStyle}
-              theme={theme}
-            />
-            <RiskCard
-              title="Max Drawdown"
-              value={maxDd == null ? "—" : `${fmtPct2(maxDd * 100)}%`}
-              sub="Worst peak-to-trough drop"
-              cardStyle={cardStyle}
-              theme={theme}
-            />
-            <RiskCard
-              title="Worst / Best Day"
-              value={
-                worstMove == null || bestMove == null
-                  ? "—"
-                  : `${fmtPct2(worstMove * 100)}% / ${fmtPct2(bestMove * 100)}%`
-              }
-              sub="Largest 1-day % move in window"
-              cardStyle={cardStyle}
-              theme={theme}
-            />
           </div>
         </div>
 
