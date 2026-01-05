@@ -1,7 +1,13 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import type { Prisma } from "@prisma/client";
 
 export const dynamic = "force-dynamic";
+
+type ExchangeRateRow = {
+  date: Date;
+  rate: Prisma.Decimal;
+};
 
 export async function GET(req: Request) {
   try {
@@ -22,17 +28,23 @@ export async function GET(req: Request) {
       where: {
         pair: "USD/PHP",
         source: "BSP",
-        date: { lte: today }, // ✅ prevent future dates
+        date: { lte: today }, // prevent future dates
       },
       orderBy: { date: "desc" },
       take: n,
-      select: { date: true, rate: true },
+      select: {
+        date: true,
+        rate: true,
+      },
     });
 
     // Return in ascending order (nice for chart)
-    const data = rows
+    const data = (rows as ExchangeRateRow[])
       .reverse()
-      .map((r) => ({ date: r.date.toISOString(), rate: r.rate.toString() }));
+      .map((r: ExchangeRateRow) => ({
+        date: r.date.toISOString(),
+        rate: r.rate.toString(),
+      }));
 
     return NextResponse.json({
       pair: "USD/PHP",
