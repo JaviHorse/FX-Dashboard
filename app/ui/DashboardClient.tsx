@@ -74,7 +74,7 @@ type FanPoint = {
 
 // Two-sided z-scores (approx)
 const Z50 = 0.674; // 50%
-const Z75 = 1.150; // 75%
+const Z75 = 1.15; // 75%
 const Z95 = 1.96; // 95%
 
 function toISODate(d: Date) {
@@ -153,9 +153,7 @@ export default function DashboardClient({ latest }: Props) {
   const [isDark, setIsDark] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const [activePreset, setActivePreset] = useState<"7D" | "30D" | "90D" | "YTD" | "CUSTOM">(
-    "90D"
-  );
+  const [activePreset, setActivePreset] = useState<"7D" | "30D" | "90D" | "YTD" | "CUSTOM">("90D");
 
   const [showMA, setShowMA] = useState(false);
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
@@ -169,6 +167,13 @@ export default function DashboardClient({ latest }: Props) {
     "receivable"
   );
   const [scenarioExposureUsd, setScenarioExposureUsd] = useState<number>(100000); // USD exposure
+
+  // ========================================
+  // Narrative Dropdown Selection (SAFE)
+  // ========================================
+  const [narrativeSelection, setNarrativeSelection] = useState<
+    "Risk & Exposure Implications" | "Hedging & Treasury Behavior"
+  >("Risk & Exposure Implications");
 
   useEffect(() => {
     const saved = localStorage.getItem("theme");
@@ -202,9 +207,7 @@ export default function DashboardClient({ latest }: Props) {
     border: `1px solid ${theme.border}`,
     borderRadius: "24px",
     padding: "24px",
-    boxShadow: isDark
-      ? "0 10px 30px -10px rgba(0,0,0,0.5)"
-      : "0 4px 20px -5px rgba(0,0,0,0.05)",
+    boxShadow: isDark ? "0 10px 30px -10px rgba(0,0,0,0.5)" : "0 4px 20px -5px rgba(0,0,0,0.05)",
     transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
     color: theme.text,
   };
@@ -296,9 +299,9 @@ export default function DashboardClient({ latest }: Props) {
       );
       return {
         isClosed: true,
-        message: `Markets closed. Latest BSP business day: ${new Date(
-          latestDate
-        ).toLocaleDateString()} (${daysSince} day${daysSince > 1 ? "s" : ""} ago)`,
+        message: `Markets closed. Latest BSP business day: ${new Date(latestDate).toLocaleDateString()} (${daysSince} day${
+          daysSince > 1 ? "s" : ""
+        } ago)`,
       };
     }
 
@@ -317,10 +320,9 @@ export default function DashboardClient({ latest }: Props) {
     setError(null);
 
     try {
-      const res = await fetch(
-        `/api/rates/range?start=${encodeURIComponent(s)}&end=${encodeURIComponent(e)}`,
-        { cache: "no-store" }
-      );
+      const res = await fetch(`/api/rates/range?start=${encodeURIComponent(s)}&end=${encodeURIComponent(e)}`, {
+        cache: "no-store",
+      });
 
       if (!res.ok) {
         const text = await res.text().catch(() => "");
@@ -355,14 +357,7 @@ export default function DashboardClient({ latest }: Props) {
       <div style={{ height: 40, width: "100%", marginTop: 8 }}>
         <ResponsiveContainer width="100%" height="100%">
           <LineChart data={data}>
-            <Line
-              type="monotone"
-              dataKey="rate"
-              stroke={color}
-              strokeWidth={2}
-              dot={false}
-              isAnimationActive={false}
-            />
+            <Line type="monotone" dataKey="rate" stroke={color} strokeWidth={2} dot={false} isAnimationActive={false} />
           </LineChart>
         </ResponsiveContainer>
       </div>
@@ -412,9 +407,7 @@ export default function DashboardClient({ latest }: Props) {
         >
           {title}
         </div>
-        <div style={{ fontSize: 28, fontWeight: 800, margin: "12px 0", color: theme.text }}>
-          {displayValue}
-        </div>
+        <div style={{ fontSize: 28, fontWeight: 800, margin: "12px 0", color: theme.text }}>{displayValue}</div>
         <div
           style={{
             fontSize: 13,
@@ -426,10 +419,7 @@ export default function DashboardClient({ latest }: Props) {
         </div>
 
         {sparklineData && sparklineData.length > 0 && (
-          <MiniSparkline
-            data={sparklineData}
-            color={trend > 0 ? theme.danger : trend < 0 ? theme.success : theme.primary}
-          />
+          <MiniSparkline data={sparklineData} color={trend > 0 ? theme.danger : trend < 0 ? theme.success : theme.primary} />
         )}
       </div>
     );
@@ -518,13 +508,327 @@ export default function DashboardClient({ latest }: Props) {
   }, [activePreset, vol30, vol90, isDark, theme]);
 
   // ========================================
+  // Narrative Header + Dropdown Modules (NEW) — text EXACT as given
+  // ========================================
+  const CORE_NARRATIVE_LOW = `Low Volatility Regime - Core Narrative (<8%)
+Interpretation
+ PHP/USD is trading within a relatively narrow range, indicating subdued short-term price fluctuations and stable market conditions. This environment often reflects balanced FX flows and limited near-term shocks, allowing currency movements to be more predictable than usual.`;
+
+  const CORE_NARRATIVE_NORMAL = `Normal Volatility Regime - Core Narrative (8<=15%)
+Interpretation
+ PHP/USD volatility is within its typical historical range, reflecting routine market adjustments to macroeconomic data and policy signals.  Price movements remain active but orderly, consistent with standard FX market functioning.`;
+
+  const CORE_NARRATIVE_HIGH = `High Volatility Regime - Core Narrative (15%>)
+Interpretation
+ PHP/USD is experiencing elevated price swings, signaling heightened uncertainty and increased sensitivity to economic, policy, or external developments. Short-term exchange rate movements are less stable, increasing the risk of abrupt and unfavorable currency shifts.`;
+
+  const RISK_EXPOSURE_LOW = `Low Volatility — Risk & Exposure
+Risk Implications
+ FX exposure tends to be more stable in this regime, with lower day-to-day valuation swings and reduced likelihood of sharp currency shocks.
+Decision Context
+Forecasting errors are generally smaller, supporting longer planning horizons.`;
+
+  const RISK_EXPOSURE_NORMAL = `Normal Volatility — Risk & Exposure
+Risk Implications
+ FX exposure reflects typical market risk, with manageable fluctuations that are broadly consistent with historical patterns.
+Decision Context
+ Standard risk limits and scenario assumptions are usually appropriate in this environment.`;
+
+  const RISK_EXPOSURE_HIGH = `High Volatility — Risk & Exposure
+Risk Implications
+ FX exposure becomes more sensitive to short-term movements, increasing the probability of adverse currency outcomes over short horizons.
+Decision Context
+ Forecast uncertainty rises, and stress scenarios gain greater relevance.`;
+
+  const HEDGING_TREASURY_LOW = `Low Volatility — Hedging & Treasury
+Treasury Considerations
+ Hedging costs are often lower, and firms may favor maintaining baseline hedge coverage rather than frequent tactical adjustments.
+Operational Impact
+ FX monitoring can typically follow standard review cycles.`;
+
+  const HEDGING_TREASURY_NORMAL = `Normal Volatility — Hedging & Treasury
+Treasury Considerations
+ Conventional hedging strategies tend to perform as expected, balancing cost efficiency with risk reduction.
+Operational Impact
+ Routine monitoring and periodic hedge rebalancing are usually sufficient.`;
+
+  const HEDGING_TREASURY_HIGH = `High Volatility — Hedging & Treasury
+Treasury Considerations
+ Hedging strategies may require higher coverage, shorter tenors, or greater flexibility to manage increased uncertainty.
+Operational Impact
+ More frequent FX reviews and tighter risk oversight are often warranted.`;
+
+  const narrativeRegimeKey = useMemo(() => {
+    const lbl = String(volRegime?.label ?? "").toLowerCase();
+    if (lbl.includes("low")) return "low" as const;
+    if (lbl.includes("normal") || lbl.includes("medium")) return "normal" as const;
+    if (lbl.includes("high")) return "high" as const;
+    return "na" as const;
+  }, [volRegime]);
+
+  const narrativeLeftText = useMemo(() => {
+    if (narrativeRegimeKey === "low") return CORE_NARRATIVE_LOW;
+    if (narrativeRegimeKey === "normal") return CORE_NARRATIVE_NORMAL;
+    if (narrativeRegimeKey === "high") return CORE_NARRATIVE_HIGH;
+    return null;
+  }, [narrativeRegimeKey, CORE_NARRATIVE_LOW, CORE_NARRATIVE_NORMAL, CORE_NARRATIVE_HIGH]);
+
+  const narrativeRightText = useMemo(() => {
+    if (narrativeRegimeKey === "na") return null;
+
+    if (narrativeSelection === "Risk & Exposure Implications") {
+      if (narrativeRegimeKey === "low") return RISK_EXPOSURE_LOW;
+      if (narrativeRegimeKey === "normal") return RISK_EXPOSURE_NORMAL;
+      return RISK_EXPOSURE_HIGH;
+    }
+
+    // Hedging & Treasury Behavior
+    if (narrativeRegimeKey === "low") return HEDGING_TREASURY_LOW;
+    if (narrativeRegimeKey === "normal") return HEDGING_TREASURY_NORMAL;
+    return HEDGING_TREASURY_HIGH;
+  }, [
+    narrativeRegimeKey,
+    narrativeSelection,
+    RISK_EXPOSURE_LOW,
+    RISK_EXPOSURE_NORMAL,
+    RISK_EXPOSURE_HIGH,
+    HEDGING_TREASURY_LOW,
+    HEDGING_TREASURY_NORMAL,
+    HEDGING_TREASURY_HIGH,
+  ]);
+
+  // ========================================
+  // Narrative UI Helpers (SAFE: display-only)
+  // - Highlights some key header lines WITHOUT changing text
+  // ========================================
+  function splitFirstLine(text: string) {
+    const idx = text.indexOf("\n");
+    if (idx === -1) return { first: text, rest: "" };
+    return { first: text.slice(0, idx), rest: text.slice(idx + 1) };
+  }
+
+  const highlightHeaders = new Set([
+    "Interpretation",
+    "Risk Implications",
+    "Decision Context",
+    "Treasury Considerations",
+    "Operational Impact",
+  ]);
+
+  function NarrativeCard({
+    title,
+    subtitle,
+    pillLabel,
+    pillStyle,
+    bodyText,
+    theme,
+    isDark,
+  }: {
+    title: string;
+    subtitle?: string;
+    pillLabel?: string;
+    pillStyle?: { bg: string; border: string; color: string };
+    bodyText: string;
+    theme: any;
+    isDark: boolean;
+  }) {
+    const { first, rest } = splitFirstLine(bodyText);
+    const restLines = rest ? rest.split("\n") : [];
+
+    return (
+      <div
+        style={{
+          position: "relative",
+          borderRadius: 24,
+          padding: 1,
+          background: isDark
+            ? "linear-gradient(135deg, rgba(99,102,241,0.28), rgba(255,255,255,0.06))"
+            : "linear-gradient(135deg, rgba(79,70,229,0.18), rgba(15,23,42,0.04))",
+          transition: "transform 220ms ease, box-shadow 220ms ease",
+          boxShadow: isDark
+            ? "0 16px 40px -22px rgba(0,0,0,0.65)"
+            : "0 16px 40px -26px rgba(0,0,0,0.18)",
+        }}
+        onMouseEnter={(e) => {
+          (e.currentTarget as HTMLDivElement).style.transform = "translateY(-2px)";
+        }}
+        onMouseLeave={(e) => {
+          (e.currentTarget as HTMLDivElement).style.transform = "translateY(0px)";
+        }}
+      >
+        <div
+          style={{
+            borderRadius: 23,
+            padding: 22,
+            background: theme.card,
+            border: `1px solid ${theme.border}`,
+            backdropFilter: "blur(12px)",
+            height: "100%",
+          }}
+        >
+          {/* Top header row */}
+          <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12 }}>
+            <div>
+              <div
+                style={{
+                  fontSize: 12,
+                  fontWeight: 900,
+                  letterSpacing: 0.8,
+                  textTransform: "uppercase",
+                  color: theme.textMuted,
+                }}
+              >
+                {title}
+              </div>
+              {subtitle && (
+                <div style={{ marginTop: 6, fontSize: 13, fontWeight: 700, color: theme.textMuted }}>{subtitle}</div>
+              )}
+            </div>
+
+            {pillLabel && pillStyle && (
+              <span
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 8,
+                  padding: "7px 12px",
+                  borderRadius: 999,
+                  border: `1px solid ${pillStyle.border}`,
+                  background: pillStyle.bg,
+                  color: pillStyle.color,
+                  fontSize: 12,
+                  fontWeight: 900,
+                  whiteSpace: "nowrap",
+                }}
+              >
+                <span
+                  style={{
+                    width: 7,
+                    height: 7,
+                    borderRadius: "50%",
+                    background: pillStyle.color,
+                    boxShadow: `0 0 10px ${pillStyle.color}`,
+                    opacity: 0.9,
+                  }}
+                />
+                {pillLabel}
+              </span>
+            )}
+          </div>
+
+          {/* Body */}
+          <div style={{ marginTop: 16 }}>
+            {/* First line as headline */}
+            <div style={{ fontSize: 16, fontWeight: 950, letterSpacing: -0.3, color: theme.text }}>{first}</div>
+
+            {/* Rest: line-by-line (highlights headers; preserves exact text) */}
+            {restLines.length > 0 && (
+              <div style={{ marginTop: 10 }}>
+                {restLines.map((line, idx) => {
+                  const trimmed = line.trim();
+                  const isHeader = highlightHeaders.has(trimmed);
+
+                  // Preserve blank lines
+                  if (line.length === 0) {
+                    return <div key={idx} style={{ height: 8 }} />;
+                  }
+
+                  return (
+                    <div
+                      key={idx}
+                      style={{
+                        fontSize: isHeader ? 13 : 14,
+                        fontWeight: isHeader ? 950 : 650,
+                        color: isHeader ? theme.accent : theme.text,
+                        opacity: isHeader ? 1 : 0.95,
+                        lineHeight: 1.55,
+                        letterSpacing: isHeader ? 0.2 : 0,
+                        textShadow: isHeader && isDark ? "0 0 18px rgba(129,140,248,0.22)" : undefined,
+                        whiteSpace: "pre-wrap",
+                      }}
+                    >
+                      {line}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  function StyledSelect({
+    value,
+    onChange,
+    theme,
+    isDark,
+    children,
+  }: {
+    value: string;
+    onChange: (v: string) => void;
+    theme: any;
+    isDark: boolean;
+    children: React.ReactNode;
+  }) {
+    return (
+      <div
+        style={{
+          position: "relative",
+          borderRadius: 14,
+          padding: 1,
+          background: isDark
+            ? "linear-gradient(135deg, rgba(99,102,241,0.35), rgba(255,255,255,0.06))"
+            : "linear-gradient(135deg, rgba(79,70,229,0.20), rgba(15,23,42,0.04))",
+        }}
+      >
+        <select
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          style={{
+            appearance: "none",
+            WebkitAppearance: "none",
+            MozAppearance: "none",
+            width: "100%",
+            borderRadius: 13,
+            padding: "10px 42px 10px 14px",
+            border: `1px solid ${theme.border}`,
+            background: theme.card,
+            color: theme.text,
+            fontSize: 13,
+            fontWeight: 800,
+            outline: "none",
+            cursor: "pointer",
+          }}
+        >
+          {children}
+        </select>
+
+        <div
+          style={{
+            position: "absolute",
+            right: 14,
+            top: "50%",
+            transform: "translateY(-50%)",
+            pointerEvents: "none",
+            color: theme.textMuted,
+            fontWeight: 900,
+            fontSize: 14,
+          }}
+        >
+          ▾
+        </div>
+      </div>
+    );
+  }
+
+  // ========================================
   // CONFIDENCE BANDS DATA (30D FAN CHART)
   // ========================================
   const baseSpot = useMemo(() => {
     // Prefer latest; fallback to last chart point
-    const s = Number.isFinite(Number(latest?.rate))
-      ? Number(latest.rate)
-      : chartData[chartData.length - 1]?.rate ?? 0;
+    const s = Number.isFinite(Number(latest?.rate)) ? Number(latest.rate) : chartData[chartData.length - 1]?.rate ?? 0;
     return Number(s) || 0;
   }, [latest, chartData]);
 
@@ -583,16 +887,13 @@ export default function DashboardClient({ latest }: Props) {
     const rate = row.rate;
 
     const lo50 = Number.isFinite(row.base50) ? row.base50 : null;
-    const up50 =
-      Number.isFinite(row.base50) && Number.isFinite(row.band50) ? row.base50 + row.band50 : null;
+    const up50 = Number.isFinite(row.base50) && Number.isFinite(row.band50) ? row.base50 + row.band50 : null;
 
     const lo75 = Number.isFinite(row.base75) ? row.base75 : null;
-    const up75 =
-      Number.isFinite(row.base75) && Number.isFinite(row.band75) ? row.base75 + row.band75 : null;
+    const up75 = Number.isFinite(row.base75) && Number.isFinite(row.band75) ? row.base75 + row.band75 : null;
 
     const lo95 = Number.isFinite(row.base95) ? row.base95 : null;
-    const up95 =
-      Number.isFinite(row.base95) && Number.isFinite(row.band95) ? row.base95 + row.band95 : null;
+    const up95 = Number.isFinite(row.base95) && Number.isFinite(row.band95) ? row.base95 + row.band95 : null;
 
     const isForecast = Number.isFinite(expected);
 
@@ -613,26 +914,14 @@ export default function DashboardClient({ latest }: Props) {
         </div>
 
         {Number.isFinite(rate) && (
-          <div style={{ fontSize: 13, fontWeight: 900, marginBottom: 8 }}>
-            Spot: ₱{fmt3(rate)}
-          </div>
+          <div style={{ fontSize: 13, fontWeight: 900, marginBottom: 8 }}>Spot: ₱{fmt3(rate)}</div>
         )}
 
         {isForecast && (
           <>
-            <div style={{ fontSize: 16, fontWeight: 950, marginBottom: 10 }}>
-              Expected: ₱{fmt3(expected)}
-            </div>
+            <div style={{ fontSize: 16, fontWeight: 950, marginBottom: 10 }}>Expected: ₱{fmt3(expected)}</div>
 
-            <div
-              style={{
-                fontSize: 12,
-                color: theme.textMuted,
-                fontWeight: 800,
-                display: "grid",
-                gap: 6,
-              }}
-            >
+            <div style={{ fontSize: 12, color: theme.textMuted, fontWeight: 800, display: "grid", gap: 6 }}>
               <div>
                 50% band:{" "}
                 <span style={{ color: theme.text, fontWeight: 900 }}>
@@ -663,9 +952,7 @@ export default function DashboardClient({ latest }: Props) {
   // ========================================
   const scenario = useMemo(() => {
     // Prefer latest rate; fallback to last chart point if needed
-    const baseRate = Number.isFinite(Number(latest?.rate))
-      ? Number(latest.rate)
-      : chartData[chartData.length - 1]?.rate ?? 0;
+    const baseRate = Number.isFinite(Number(latest?.rate)) ? Number(latest.rate) : chartData[chartData.length - 1]?.rate ?? 0;
 
     const rate = Number(baseRate) || 0;
 
@@ -769,30 +1056,17 @@ export default function DashboardClient({ latest }: Props) {
           minWidth: 220,
         }}
       >
-        <div style={{ fontSize: 11, opacity: 0.65, marginBottom: 6, fontWeight: 800 }}>
-          Shock: {shockText}
-        </div>
-        <div style={{ fontSize: 12, opacity: 0.75, marginBottom: 8, fontWeight: 700 }}>
-          Shocked rate: ₱{fmt3(row.shockedRate)}
-        </div>
-        <div
-          style={{
-            fontSize: 18,
-            fontWeight: 950,
-            color: pnl >= 0 ? theme.success : theme.danger,
-          }}
-        >
+        <div style={{ fontSize: 11, opacity: 0.65, marginBottom: 6, fontWeight: 800 }}>Shock: {shockText}</div>
+        <div style={{ fontSize: 12, opacity: 0.75, marginBottom: 8, fontWeight: 700 }}>Shocked rate: ₱{fmt3(row.shockedRate)}</div>
+        <div style={{ fontSize: 18, fontWeight: 950, color: pnl >= 0 ? theme.success : theme.danger }}>
           {pnl >= 0 ? "+" : ""}
           {pnl.toLocaleString(undefined, { maximumFractionDigits: 0 })}
           <span style={{ fontSize: 12, fontWeight: 800, opacity: 0.75, marginLeft: 6 }}>PHP</span>
         </div>
         <div style={{ marginTop: 8, fontSize: 12, color: theme.textMuted, fontWeight: 700 }}>
           {scenarioExposureType === "receivable" ? "Receivable (Long USD)" : "Payable (Short USD)"}
-          {" • "}
-          USD{" "}
-          {Math.max(0, Number(scenarioExposureUsd) || 0).toLocaleString(undefined, {
-            maximumFractionDigits: 0,
-          })}
+          {" • "}USD{" "}
+          {Math.max(0, Number(scenarioExposureUsd) || 0).toLocaleString(undefined, { maximumFractionDigits: 0 })}
         </div>
       </div>
     );
@@ -879,19 +1153,9 @@ export default function DashboardClient({ latest }: Props) {
           zIndex: 1,
         }}
       >
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            flexWrap: "wrap",
-            gap: 20,
-          }}
-        >
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 20 }}>
           <div>
-            <h1 style={{ fontSize: 40, fontWeight: 900, margin: 0, letterSpacing: "-1.5px" }}>
-              Peso Pilot
-            </h1>
+            <h1 style={{ fontSize: 40, fontWeight: 900, margin: 0, letterSpacing: "-1.5px" }}>Peso Pilot</h1>
             <p style={{ color: theme.textMuted, margin: "4px 0 0 0", fontSize: 16 }}>
               USD/PHP Market Analytics by Javier Macasaet and Unno Marquez
             </p>
@@ -938,13 +1202,7 @@ export default function DashboardClient({ latest }: Props) {
                 style={{
                   fontSize: 12,
                   fontWeight: 600,
-                  color: marketStatus.isClosed
-                    ? isDark
-                      ? "#fbbf24"
-                      : "#92400e"
-                    : isDark
-                    ? "#22c55e"
-                    : "#166534",
+                  color: marketStatus.isClosed ? (isDark ? "#fbbf24" : "#92400e") : isDark ? "#22c55e" : "#166534",
                 }}
               >
                 {marketStatus.message}
@@ -981,8 +1239,8 @@ export default function DashboardClient({ latest }: Props) {
                   }}
                   style={{
                     ...inputStyle,
-                    padding: "8px 12px", // keep compact ONLY here
-                    fontSize: 13, // compact ONLY here
+                    padding: "8px 12px",
+                    fontSize: 13,
                     background: "transparent",
                     color: theme.text,
                     borderColor: theme.border,
@@ -1000,8 +1258,8 @@ export default function DashboardClient({ latest }: Props) {
                   }}
                   style={{
                     ...inputStyle,
-                    padding: "8px 12px", // keep compact ONLY here
-                    fontSize: 13, // compact ONLY here
+                    padding: "8px 12px",
+                    fontSize: 13,
                     background: "transparent",
                     color: theme.text,
                     borderColor: theme.border,
@@ -1016,12 +1274,12 @@ export default function DashboardClient({ latest }: Props) {
                   }}
                   style={{
                     ...btnStyle,
-                    padding: "8px 16px", // keep compact ONLY here
+                    padding: "8px 16px",
                     borderRadius: 12,
                     background: theme.primary,
                     opacity: loading ? 0.7 : 1,
                     cursor: loading ? "not-allowed" : "pointer",
-                    fontSize: 13, // compact ONLY here
+                    fontSize: 13,
                     fontWeight: 800,
                   }}
                 >
@@ -1121,13 +1379,7 @@ export default function DashboardClient({ latest }: Props) {
         {/* ========================================
             KPI CARDS WITH SPARKLINES
             ======================================== */}
-        <div
-          style={{
-            display: "grid",
-            gap: 20,
-            gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
-          }}
-        >
+        <div style={{ display: "grid", gap: 20, gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))" }}>
           <KpiCard
             title="Live Rate"
             value={`₱${fmt3(Number(latest.rate))}`}
@@ -1142,20 +1394,8 @@ export default function DashboardClient({ latest }: Props) {
             trend={dailyDelta}
             sparklineData={sparklineData}
           />
-          <KpiCard
-            title="Range Low"
-            value={`₱${fmt3(minRange)}`}
-            sub="Period Min"
-            trend={0}
-            sparklineData={sparklineData}
-          />
-          <KpiCard
-            title="Range High"
-            value={`₱${fmt3(maxRange)}`}
-            sub="Period Max"
-            trend={0}
-            sparklineData={sparklineData}
-          />
+          <KpiCard title="Range Low" value={`₱${fmt3(minRange)}`} sub="Period Min" trend={0} sparklineData={sparklineData} />
+          <KpiCard title="Range High" value={`₱${fmt3(maxRange)}`} sub="Period Max" trend={0} sparklineData={sparklineData} />
         </div>
 
         {/* ========================================
@@ -1173,18 +1413,8 @@ export default function DashboardClient({ latest }: Props) {
             }}
           >
             <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
-              <div
-                style={{
-                  width: 10,
-                  height: 10,
-                  borderRadius: "50%",
-                  background: "#22c55e",
-                  boxShadow: "0 0 10px #22c55e",
-                }}
-              />
-              <span style={{ fontWeight: 800, fontSize: 18, letterSpacing: -0.5 }}>
-                {modeLabel} Overview
-              </span>
+              <div style={{ width: 10, height: 10, borderRadius: "50%", background: "#22c55e", boxShadow: "0 0 10px #22c55e" }} />
+              <span style={{ fontWeight: 800, fontSize: 18, letterSpacing: -0.5 }}>{modeLabel} Overview</span>
 
               {/* Volatility Regime Badge (changes with preset) */}
               <span
@@ -1214,16 +1444,10 @@ export default function DashboardClient({ latest }: Props) {
                   }}
                 />
                 {volRegime.label}
-                {volRegime.volText && (
-                  <span style={{ marginLeft: 6, opacity: 0.75, fontWeight: 800 }}>
-                    {volRegime.volText}
-                  </span>
-                )}
+                {volRegime.volText && <span style={{ marginLeft: 6, opacity: 0.75, fontWeight: 800 }}>{volRegime.volText}</span>}
               </span>
 
-              {loading && (
-                <span style={{ fontSize: 12, color: theme.textMuted, marginLeft: 8 }}>Loading…</span>
-              )}
+              {loading && <span style={{ fontSize: 12, color: theme.textMuted, marginLeft: 8 }}>Loading…</span>}
             </div>
 
             {/* ========================================
@@ -1270,46 +1494,20 @@ export default function DashboardClient({ latest }: Props) {
 
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={theme.grid} />
 
-                <XAxis
-                  dataKey="date"
-                  axisLine={false}
-                  tickLine={false}
-                  tick={{ fontSize: 11, fill: theme.textMuted }}
-                  minTickGap={40}
-                />
+                <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: theme.textMuted }} minTickGap={40} />
 
-                <YAxis
-                  domain={["auto", "auto"]}
-                  orientation="right"
-                  axisLine={false}
-                  tickLine={false}
-                  tick={{ fontSize: 11, fill: theme.textMuted }}
-                />
+                <YAxis domain={["auto", "auto"]} orientation="right" axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: theme.textMuted }} />
 
                 {/* ========================================
                     CROSSHAIR HOVER LINE
                     ======================================== */}
                 {hoveredIndex !== null && (
-                  <ReferenceLine
-                    x={chartDataWithMA[hoveredIndex]?.date}
-                    stroke={theme.textMuted}
-                    strokeDasharray="3 3"
-                    strokeOpacity={0.5}
-                  />
+                  <ReferenceLine x={chartDataWithMA[hoveredIndex]?.date} stroke={theme.textMuted} strokeDasharray="3 3" strokeOpacity={0.5} />
                 )}
 
-                <Tooltip
-                  content={<EnhancedTooltip isDark={isDark} theme={theme} chartData={chartData} />}
-                />
+                <Tooltip content={<EnhancedTooltip isDark={isDark} theme={theme} chartData={chartData} />} />
 
-                <Area
-                  type="monotone"
-                  dataKey="rate"
-                  stroke={theme.primary}
-                  strokeWidth={4}
-                  fill="url(#colorRate)"
-                  animationDuration={1000}
-                />
+                <Area type="monotone" dataKey="rate" stroke={theme.primary} strokeWidth={4} fill="url(#colorRate)" animationDuration={1000} />
 
                 {/* ========================================
                     MOVING AVERAGE LINE
@@ -1330,49 +1528,128 @@ export default function DashboardClient({ latest }: Props) {
           </div>
 
           <div style={{ marginTop: 20 }}>
-            <Brush
-              dataKey="date"
-              height={30}
-              stroke={theme.primary}
-              fill={theme.card}
-              travellerWidth={10}
-            />
+            <Brush dataKey="date" height={30} stroke={theme.primary} fill={theme.card} travellerWidth={10} />
           </div>
         </div>
 
-        {/* ============================================================
-            ✅ ONLY CHANGE REQUESTED: SWAP SECTIONS
-            - Risk Metrics now appears where FX Outlook used to be
-            - FX Outlook now appears where Risk Metrics used to be
-            - No UI/logic changes inside each section
-           ============================================================ */}
-
         {/* ========================================
-            RISK METRICS PANEL (SWAPPED UP)
+            Narrative Header + Dropdown (ABOVE Risk Metrics) — POLISHED
             ======================================== */}
-        <div style={{ display: "grid", gap: 14 }}>
+        <div
+          style={{
+            display: "grid",
+            gap: 20,
+            gridTemplateColumns: "repeat(auto-fit, minmax(340px, 1fr))",
+            alignItems: "stretch",
+          }}
+        >
+          {/* Left: Core Narrative */}
+          {narrativeLeftText ? (
+            <NarrativeCard
+              key={`core-${narrativeRegimeKey}`}
+              title="Narrative Header"
+              subtitle="Core Narrative Interpretation"
+              pillLabel={volRegime.label}
+              pillStyle={{ bg: volRegime.bg, border: volRegime.border, color: volRegime.color }}
+              bodyText={narrativeLeftText}
+              theme={theme}
+              isDark={isDark}
+            />
+          ) : (
+            <div style={{ ...cardStyle }}>
+              <div style={{ fontSize: 12, fontWeight: 900, letterSpacing: 0.8, textTransform: "uppercase", color: theme.textMuted }}>
+                Narrative Header
+              </div>
+              <div style={{ marginTop: 10, fontSize: 13, opacity: 0.75 }}>
+                Not enough data to generate the narrative for this window.
+              </div>
+            </div>
+          )}
+
+          {/* Right: Dropdown + Module */}
           <div
             style={{
-              display: "flex",
-              alignItems: "baseline",
-              justifyContent: "space-between",
-              gap: 12,
-              flexWrap: "wrap",
+              position: "relative",
+              borderRadius: 24,
+              padding: 1,
+              background: isDark
+                ? "linear-gradient(135deg, rgba(99,102,241,0.28), rgba(255,255,255,0.06))"
+                : "linear-gradient(135deg, rgba(79,70,229,0.18), rgba(15,23,42,0.04))",
+              boxShadow: isDark
+                ? "0 16px 40px -22px rgba(0,0,0,0.65)"
+                : "0 16px 40px -26px rgba(0,0,0,0.18)",
+              transition: "transform 220ms ease, box-shadow 220ms ease",
+            }}
+            onMouseEnter={(e) => {
+              (e.currentTarget as HTMLDivElement).style.transform = "translateY(-2px)";
+            }}
+            onMouseLeave={(e) => {
+              (e.currentTarget as HTMLDivElement).style.transform = "translateY(0px)";
             }}
           >
+            <div
+              style={{
+                borderRadius: 23,
+                padding: 22,
+                background: theme.card,
+                border: `1px solid ${theme.border}`,
+                backdropFilter: "blur(12px)",
+                height: "100%",
+                display: "flex",
+                flexDirection: "column",
+              }}
+            >
+              <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12 }}>
+                <div>
+                  <div style={{ fontSize: 12, fontWeight: 900, letterSpacing: 0.8, textTransform: "uppercase", color: theme.textMuted }}>
+                    Dropdown
+                  </div>
+                  <div style={{ marginTop: 6, fontSize: 13, fontWeight: 700, color: theme.textMuted }}>
+                    Select a lens to interpret the current regime
+                  </div>
+                </div>
+
+                <div style={{ width: 280, maxWidth: "100%" }}>
+                  <StyledSelect value={narrativeSelection} onChange={(v) => setNarrativeSelection(v as any)} theme={theme} isDark={isDark}>
+                    <option value="Risk & Exposure Implications">Risk & Exposure Implications</option>
+                    <option value="Hedging & Treasury Behavior">Hedging & Treasury Behavior</option>
+                  </StyledSelect>
+                </div>
+              </div>
+
+              <div style={{ marginTop: 16, flex: 1 }}>
+                {narrativeRightText ? (
+                  <NarrativeCard
+                    key={`mod-${narrativeRegimeKey}-${narrativeSelection}`}
+                    title="Selected Module"
+                    subtitle={narrativeSelection}
+                    pillLabel={volRegime.label}
+                    pillStyle={{ bg: volRegime.bg, border: volRegime.border, color: volRegime.color }}
+                    bodyText={narrativeRightText}
+                    theme={theme}
+                    isDark={isDark}
+                  />
+                ) : (
+                  <div style={{ fontSize: 13, opacity: 0.75 }}>Not enough data to generate the module for this window.</div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* ========================================
+            RISK METRICS PANEL (UNDER GRAPH)
+            (SWAPPED ABOVE FX OUTLOOK as requested earlier)
+            ======================================== */}
+        <div style={{ display: "grid", gap: 14 }}>
+          <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
             <div style={{ fontWeight: 900, letterSpacing: -0.5, fontSize: 16 }}>Risk Metrics</div>
             <div style={{ fontSize: 12, color: theme.textMuted, fontWeight: 700 }}>
               Based on daily moves in current window • Points: {risk.points}
             </div>
           </div>
 
-          <div
-            style={{
-              display: "grid",
-              gap: 20,
-              gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
-            }}
-          >
+          <div style={{ display: "grid", gap: 20, gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))" }}>
             <RiskCard
               title="30D Volatility"
               value={vol30 == null ? "—" : `${fmtPct2(vol30 * 100)}%`}
@@ -1409,30 +1686,18 @@ export default function DashboardClient({ latest }: Props) {
         </div>
 
         {/* ========================================
-            FX OUTLOOK (CONFIDENCE BANDS / FAN CHART) (SWAPPED DOWN)
+            FX OUTLOOK (CONFIDENCE BANDS / FAN CHART)
             ======================================== */}
         <div style={{ display: "grid", gap: 14 }}>
-          <div
-            style={{
-              display: "flex",
-              alignItems: "baseline",
-              justifyContent: "space-between",
-              gap: 12,
-              flexWrap: "wrap",
-            }}
-          >
-            <div style={{ fontWeight: 900, letterSpacing: -0.5, fontSize: 16 }}>
-              FX Outlook (30D Confidence Bands)
-            </div>
-            <div style={{ fontSize: 12, color: theme.textMuted, fontWeight: 700 }}>
-              Volatility-driven envelope • 50% / 75% / 95%
-            </div>
+          <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
+            <div style={{ fontWeight: 900, letterSpacing: -0.5, fontSize: 16 }}>FX Outlook (30D Confidence Bands)</div>
+            <div style={{ fontSize: 12, color: theme.textMuted, fontWeight: 700 }}>Volatility-driven envelope • 50% / 75% / 95%</div>
           </div>
 
           <div style={{ ...cardStyle, padding: 20 }}>
             <div style={{ fontSize: 13, color: theme.textMuted, fontWeight: 700, marginBottom: 10 }}>
-              Shaded bands show a probabilistic range of USD/PHP outcomes over the next 30 days based on
-              the current volatility regime (annualized) from your selected window.
+              Shaded bands show a probabilistic range of USD/PHP outcomes over the next 30 days based on the current volatility
+              regime (annualized) from your selected window.
             </div>
 
             {!fanAnnualVol ? (
@@ -1447,16 +1712,12 @@ export default function DashboardClient({ latest }: Props) {
                   </span>
                   <span style={{ fontSize: 12, fontWeight: 800, color: theme.textMuted }}>
                     Vol used:{" "}
-                    <span style={{ color: theme.text, fontWeight: 900 }}>
-                      {fmtPct2((fanAnnualVol ?? 0) * 100)}%
-                    </span>{" "}
+                    <span style={{ color: theme.text, fontWeight: 900 }}>{fmtPct2((fanAnnualVol ?? 0) * 100)}%</span>{" "}
                     <span style={{ opacity: 0.75 }}>(annualized)</span>
                   </span>
                   <span style={{ fontSize: 12, fontWeight: 800, color: theme.textMuted }}>
                     Start:{" "}
-                    <span style={{ color: theme.text, fontWeight: 900 }}>
-                      {chartData.length ? chartData[chartData.length - 1].date : latestISO}
-                    </span>
+                    <span style={{ color: theme.text, fontWeight: 900 }}>{chartData.length ? chartData[chartData.length - 1].date : latestISO}</span>
                   </span>
                 </div>
 
@@ -1465,77 +1726,29 @@ export default function DashboardClient({ latest }: Props) {
                     <AreaChart data={fanChartMerged} margin={{ top: 10, right: 20, bottom: 0, left: 0 }}>
                       <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={theme.grid} />
 
-                      <XAxis
-                        dataKey="date"
-                        axisLine={false}
-                        tickLine={false}
-                        tick={{ fontSize: 11, fill: theme.textMuted }}
-                        minTickGap={40}
-                      />
+                      <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: theme.textMuted }} minTickGap={40} />
 
-                      <YAxis
-                        domain={["auto", "auto"]}
-                        axisLine={false}
-                        tickLine={false}
-                        tick={{ fontSize: 11, fill: theme.textMuted }}
-                      />
+                      <YAxis domain={["auto", "auto"]} axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: theme.textMuted }} />
 
                       <Tooltip content={<FanTooltip />} />
 
                       {/* Spot reference */}
-                      <ReferenceLine
-                        y={baseSpot}
-                        stroke={theme.textMuted}
-                        strokeDasharray="4 4"
-                        strokeOpacity={0.55}
-                      />
+                      <ReferenceLine y={baseSpot} stroke={theme.textMuted} strokeDasharray="4 4" strokeOpacity={0.55} />
 
                       {/* 95% band (widest) */}
                       <Area dataKey="base95" stackId="fan95" stroke="none" fillOpacity={0} />
-                      <Area
-                        dataKey="band95"
-                        stackId="fan95"
-                        stroke="none"
-                        fill={theme.primary}
-                        fillOpacity={0.1}
-                        isAnimationActive
-                        animationDuration={700}
-                      />
+                      <Area dataKey="band95" stackId="fan95" stroke="none" fill={theme.primary} fillOpacity={0.1} isAnimationActive animationDuration={700} />
 
                       {/* 75% band */}
                       <Area dataKey="base75" stackId="fan75" stroke="none" fillOpacity={0} />
-                      <Area
-                        dataKey="band75"
-                        stackId="fan75"
-                        stroke="none"
-                        fill={theme.primary}
-                        fillOpacity={0.16}
-                        isAnimationActive
-                        animationDuration={700}
-                      />
+                      <Area dataKey="band75" stackId="fan75" stroke="none" fill={theme.primary} fillOpacity={0.16} isAnimationActive animationDuration={700} />
 
                       {/* 50% band (tightest) */}
                       <Area dataKey="base50" stackId="fan50" stroke="none" fillOpacity={0} />
-                      <Area
-                        dataKey="band50"
-                        stackId="fan50"
-                        stroke="none"
-                        fill={theme.primary}
-                        fillOpacity={0.22}
-                        isAnimationActive
-                        animationDuration={700}
-                      />
+                      <Area dataKey="band50" stackId="fan50" stroke="none" fill={theme.primary} fillOpacity={0.22} isAnimationActive animationDuration={700} />
 
                       {/* Expected path */}
-                      <Line
-                        type="monotone"
-                        dataKey="expected"
-                        stroke={theme.accent}
-                        strokeWidth={3}
-                        dot={false}
-                        isAnimationActive
-                        animationDuration={700}
-                      />
+                      <Line type="monotone" dataKey="expected" stroke={theme.accent} strokeWidth={3} dot={false} isAnimationActive animationDuration={700} />
 
                       {/* Historical continuation */}
                       <Line
@@ -1552,17 +1765,8 @@ export default function DashboardClient({ latest }: Props) {
                   </ResponsiveContainer>
                 </div>
 
-                <div
-                  style={{
-                    marginTop: 10,
-                    fontSize: 12,
-                    color: theme.textMuted,
-                    fontWeight: 700,
-                    lineHeight: 1.35,
-                  }}
-                >
-                  Interpretation: The fan widens over time because uncertainty scales with √t. This is a
-                  volatility-driven envelope (not a fundamental macro forecast).
+                <div style={{ marginTop: 10, fontSize: 12, color: theme.textMuted, fontWeight: 700, lineHeight: 1.35 }}>
+                  Interpretation: The fan widens over time because uncertainty scales with √t. This is a volatility-driven envelope (not a fundamental macro forecast).
                 </div>
               </>
             )}
@@ -1573,56 +1777,20 @@ export default function DashboardClient({ latest }: Props) {
             SCENARIO SIMULATOR
             ======================================== */}
         <div style={{ display: "grid", gap: 14 }}>
-          <div
-            style={{
-              display: "flex",
-              alignItems: "baseline",
-              justifyContent: "space-between",
-              gap: 12,
-              flexWrap: "wrap",
-            }}
-          >
-            <div style={{ fontWeight: 900, letterSpacing: -0.5, fontSize: 16 }}>
-              Scenario Simulator
-            </div>
+          <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
+            <div style={{ fontWeight: 900, letterSpacing: -0.5, fontSize: 16 }}>Scenario Simulator</div>
             <div style={{ fontSize: 12, color: theme.textMuted, fontWeight: 700 }}>
-              Sensitivity analysis using current rate •{" "}
-              {Number.isFinite(scenario.rate) ? `₱${fmt3(scenario.rate)}` : "—"}
+              Sensitivity analysis using current rate • {Number.isFinite(scenario.rate) ? `₱${fmt3(scenario.rate)}` : "—"}
             </div>
           </div>
 
           <div style={{ ...cardStyle, padding: 20, display: "grid", gap: 16 }}>
-            <div style={{ color: theme.textMuted, fontSize: 13, fontWeight: 700 }}>
-              Simulate USD/PHP moves and estimate the PHP impact on a USD exposure.
-            </div>
+            <div style={{ color: theme.textMuted, fontSize: 13, fontWeight: 700 }}>Simulate USD/PHP moves and estimate the PHP impact on a USD exposure.</div>
 
-            <div
-              style={{
-                display: "grid",
-                gap: 16,
-                gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",
-              }}
-            >
+            <div style={{ display: "grid", gap: 16, gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))" }}>
               {/* Exposure */}
-              <div
-                style={{
-                  border: `1px solid ${theme.border}`,
-                  borderRadius: 18,
-                  padding: 16,
-                  background: isDark ? "rgba(15,23,42,0.35)" : "rgba(248,250,252,0.6)",
-                }}
-              >
-                <div
-                  style={{
-                    fontSize: 12,
-                    fontWeight: 900,
-                    letterSpacing: 0.6,
-                    textTransform: "uppercase",
-                    color: theme.textMuted,
-                  }}
-                >
-                  Exposure
-                </div>
+              <div style={{ border: `1px solid ${theme.border}`, borderRadius: 18, padding: 16, background: isDark ? "rgba(15,23,42,0.35)" : "rgba(248,250,252,0.6)" }}>
+                <div style={{ fontSize: 12, fontWeight: 900, letterSpacing: 0.6, textTransform: "uppercase", color: theme.textMuted }}>Exposure</div>
 
                 <div style={{ marginTop: 10, display: "flex", gap: 8, flexWrap: "wrap" }}>
                   <button
@@ -1631,9 +1799,7 @@ export default function DashboardClient({ latest }: Props) {
                       ...btnStyle,
                       background: scenarioExposureType === "receivable" ? theme.primary : "transparent",
                       color: scenarioExposureType === "receivable" ? "white" : theme.textMuted,
-                      border: `1px solid ${
-                        scenarioExposureType === "receivable" ? theme.primary : theme.border
-                      }`,
+                      border: `1px solid ${scenarioExposureType === "receivable" ? theme.primary : theme.border}`,
                       padding: "8px 12px",
                     }}
                   >
@@ -1645,9 +1811,7 @@ export default function DashboardClient({ latest }: Props) {
                       ...btnStyle,
                       background: scenarioExposureType === "payable" ? theme.primary : "transparent",
                       color: scenarioExposureType === "payable" ? "white" : theme.textMuted,
-                      border: `1px solid ${
-                        scenarioExposureType === "payable" ? theme.primary : theme.border
-                      }`,
+                      border: `1px solid ${scenarioExposureType === "payable" ? theme.primary : theme.border}`,
                       padding: "8px 12px",
                     }}
                   >
@@ -1656,53 +1820,21 @@ export default function DashboardClient({ latest }: Props) {
                 </div>
 
                 <div style={{ marginTop: 12 }}>
-                  <div
-                    style={{
-                      fontSize: 12,
-                      fontWeight: 800,
-                      color: theme.textMuted,
-                      marginBottom: 6,
-                    }}
-                  >
-                    Exposure Amount (USD)
-                  </div>
+                  <div style={{ fontSize: 12, fontWeight: 800, color: theme.textMuted, marginBottom: 6 }}>Exposure Amount (USD)</div>
                   <input
                     type="number"
                     min={0}
                     value={scenarioExposureUsd}
                     onChange={(e) => setScenarioExposureUsd(Number(e.target.value))}
-                    style={{
-                      ...inputStyle,
-                      width: "100%",
-                      background: theme.card,
-                      color: theme.text,
-                      borderColor: theme.border,
-                    }}
+                    style={{ ...inputStyle, width: "100%", background: theme.card, color: theme.text, borderColor: theme.border }}
                     placeholder="e.g., 100000"
                   />
                 </div>
               </div>
 
               {/* Market Move */}
-              <div
-                style={{
-                  border: `1px solid ${theme.border}`,
-                  borderRadius: 18,
-                  padding: 16,
-                  background: isDark ? "rgba(15,23,42,0.35)" : "rgba(248,250,252,0.6)",
-                }}
-              >
-                <div
-                  style={{
-                    fontSize: 12,
-                    fontWeight: 900,
-                    letterSpacing: 0.6,
-                    textTransform: "uppercase",
-                    color: theme.textMuted,
-                  }}
-                >
-                  Market Move
-                </div>
+              <div style={{ border: `1px solid ${theme.border}`, borderRadius: 18, padding: 16, background: isDark ? "rgba(15,23,42,0.35)" : "rgba(248,250,252,0.6)" }}>
+                <div style={{ fontSize: 12, fontWeight: 900, letterSpacing: 0.6, textTransform: "uppercase", color: theme.textMuted }}>Market Move</div>
 
                 <div style={{ marginTop: 10, display: "flex", gap: 8, flexWrap: "wrap" }}>
                   <button
@@ -1723,9 +1855,7 @@ export default function DashboardClient({ latest }: Props) {
                       ...btnStyle,
                       background: scenarioDirection === "down" ? theme.primary : "transparent",
                       color: scenarioDirection === "down" ? "white" : theme.textMuted,
-                      border: `1px solid ${
-                        scenarioDirection === "down" ? theme.primary : theme.border
-                      }`,
+                      border: `1px solid ${scenarioDirection === "down" ? theme.primary : theme.border}`,
                       padding: "8px 12px",
                     }}
                   >
@@ -1734,16 +1864,7 @@ export default function DashboardClient({ latest }: Props) {
                 </div>
 
                 <div style={{ marginTop: 12 }}>
-                  <div
-                    style={{
-                      fontSize: 12,
-                      fontWeight: 800,
-                      color: theme.textMuted,
-                      marginBottom: 6,
-                    }}
-                  >
-                    Shock Size (%)
-                  </div>
+                  <div style={{ fontSize: 12, fontWeight: 800, color: theme.textMuted, marginBottom: 6 }}>Shock Size (%)</div>
 
                   <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
                     <input
@@ -1762,14 +1883,7 @@ export default function DashboardClient({ latest }: Props) {
                       step={0.1}
                       value={scenarioPct}
                       onChange={(e) => setScenarioPct(Number(e.target.value))}
-                      style={{
-                        ...inputStyle,
-                        width: 90,
-                        background: theme.card,
-                        color: theme.text,
-                        borderColor: theme.border,
-                        padding: "8px 10px",
-                      }}
+                      style={{ ...inputStyle, width: 90, background: theme.card, color: theme.text, borderColor: theme.border, padding: "8px 10px" }}
                     />
                   </div>
 
@@ -1780,88 +1894,38 @@ export default function DashboardClient({ latest }: Props) {
               </div>
 
               {/* Results */}
-              <div
-                style={{
-                  border: `1px solid ${theme.border}`,
-                  borderRadius: 18,
-                  padding: 16,
-                  background: isDark ? "rgba(15,23,42,0.35)" : "rgba(248,250,252,0.6)",
-                }}
-              >
-                <div
-                  style={{
-                    fontSize: 12,
-                    fontWeight: 900,
-                    letterSpacing: 0.6,
-                    textTransform: "uppercase",
-                    color: theme.textMuted,
-                  }}
-                >
-                  Results
-                </div>
+              <div style={{ border: `1px solid ${theme.border}`, borderRadius: 18, padding: 16, background: isDark ? "rgba(15,23,42,0.35)" : "rgba(248,250,252,0.6)" }}>
+                <div style={{ fontSize: 12, fontWeight: 900, letterSpacing: 0.6, textTransform: "uppercase", color: theme.textMuted }}>Results</div>
 
                 <div style={{ marginTop: 12, display: "grid", gap: 10 }}>
                   <div style={{ display: "flex", justifyContent: "space-between", gap: 10 }}>
-                    <span style={{ fontSize: 12, color: theme.textMuted, fontWeight: 800 }}>
-                      Baseline (PHP)
-                    </span>
-                    <span style={{ fontSize: 14, fontWeight: 900 }}>
-                      {scenario.baselinePhp.toLocaleString(undefined, { maximumFractionDigits: 0 })}
-                    </span>
+                    <span style={{ fontSize: 12, color: theme.textMuted, fontWeight: 800 }}>Baseline (PHP)</span>
+                    <span style={{ fontSize: 14, fontWeight: 900 }}>{scenario.baselinePhp.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
                   </div>
 
                   <div style={{ display: "flex", justifyContent: "space-between", gap: 10 }}>
-                    <span style={{ fontSize: 12, color: theme.textMuted, fontWeight: 800 }}>
-                      Shocked (PHP)
-                    </span>
-                    <span style={{ fontSize: 14, fontWeight: 900 }}>
-                      {scenario.shockedPhp.toLocaleString(undefined, { maximumFractionDigits: 0 })}
-                    </span>
+                    <span style={{ fontSize: 12, color: theme.textMuted, fontWeight: 800 }}>Shocked (PHP)</span>
+                    <span style={{ fontSize: 14, fontWeight: 900 }}>{scenario.shockedPhp.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
                   </div>
 
                   <div style={{ height: 1, background: theme.border, opacity: 0.7, margin: "6px 0" }} />
 
-                  <div
-                    style={{
-                      display: "flex",
-                      justifyContent: "space-between",
-                      gap: 10,
-                      alignItems: "baseline",
-                    }}
-                  >
-                    <span style={{ fontSize: 12, color: theme.textMuted, fontWeight: 900 }}>
-                      P/L Impact (PHP)
-                    </span>
-                    <span
-                      style={{
-                        fontSize: 16,
-                        fontWeight: 950,
-                        color: scenario.deltaPhp >= 0 ? theme.success : theme.danger,
-                      }}
-                    >
+                  <div style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "baseline" }}>
+                    <span style={{ fontSize: 12, color: theme.textMuted, fontWeight: 900 }}>P/L Impact (PHP)</span>
+                    <span style={{ fontSize: 16, fontWeight: 950, color: scenario.deltaPhp >= 0 ? theme.success : theme.danger }}>
                       {scenario.deltaPhp >= 0 ? "+" : ""}
                       {scenario.deltaPhp.toLocaleString(undefined, { maximumFractionDigits: 0 })}
                     </span>
                   </div>
 
-                  <div
-                    style={{
-                      marginTop: 8,
-                      fontSize: 12,
-                      color: theme.textMuted,
-                      fontWeight: 700,
-                      lineHeight: 1.35,
-                    }}
-                  >
+                  <div style={{ marginTop: 8, fontSize: 12, color: theme.textMuted, fontWeight: 700, lineHeight: 1.35 }}>
                     Interpretation: A{" "}
                     <span style={{ color: theme.text, fontWeight: 900 }}>
                       {scenarioDirection === "up" ? "+" : "−"}
                       {scenarioPct.toFixed(1)}%
                     </span>{" "}
                     move in USD/PHP implies an estimated{" "}
-                    <span style={{ color: theme.text, fontWeight: 900 }}>
-                      {scenario.deltaPhp >= 0 ? "gain" : "loss"}
-                    </span>{" "}
+                    <span style={{ color: theme.text, fontWeight: 900 }}>{scenario.deltaPhp >= 0 ? "gain" : "loss"}</span>{" "}
                     of{" "}
                     <span style={{ color: theme.text, fontWeight: 900 }}>
                       PHP{" "}
@@ -1885,27 +1949,14 @@ export default function DashboardClient({ latest }: Props) {
              FX SENSITIVITY CURVE (P/L vs Shock %)
             ======================================== */}
         <div style={{ display: "grid", gap: 14 }}>
-          <div
-            style={{
-              display: "flex",
-              alignItems: "baseline",
-              justifyContent: "space-between",
-              gap: 12,
-              flexWrap: "wrap",
-            }}
-          >
-            <div style={{ fontWeight: 900, letterSpacing: -0.5, fontSize: 16 }}>
-              FX Sensitivity Curve
-            </div>
-            <div style={{ fontSize: 12, color: theme.textMuted, fontWeight: 700 }}>
-              P/L impact (PHP) vs USD/PHP shock • Range: −5% to +5%
-            </div>
+          <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
+            <div style={{ fontWeight: 900, letterSpacing: -0.5, fontSize: 16 }}>FX Sensitivity Curve</div>
+            <div style={{ fontSize: 12, color: theme.textMuted, fontWeight: 700 }}>P/L impact (PHP) vs USD/PHP shock • Range: −5% to +5%</div>
           </div>
 
           <div style={{ ...cardStyle, padding: 20 }}>
             <div style={{ fontSize: 13, color: theme.textMuted, fontWeight: 700, marginBottom: 10 }}>
-              This curve visualizes how your estimated PHP P/L changes as USD/PHP moves. The vertical marker
-              shows your current selected shock.
+              This curve visualizes how your estimated PHP P/L changes as USD/PHP moves. The vertical marker shows your current selected shock.
             </div>
 
             <div style={{ height: 280, width: "100%" }}>
@@ -1934,9 +1985,7 @@ export default function DashboardClient({ latest }: Props) {
                     axisLine={false}
                     tickLine={false}
                     tick={{ fontSize: 11, fill: theme.textMuted }}
-                    tickFormatter={(v) =>
-                      Number(v).toLocaleString(undefined, { maximumFractionDigits: 0 })
-                    }
+                    tickFormatter={(v) => Number(v).toLocaleString(undefined, { maximumFractionDigits: 0 })}
                     label={{
                       value: "P/L Impact (PHP)",
                       angle: -90,
@@ -1960,15 +2009,7 @@ export default function DashboardClient({ latest }: Props) {
                     strokeOpacity={0.9}
                   />
 
-                  <Line
-                    type="monotone"
-                    dataKey="pnlPhp"
-                    stroke={theme.primary}
-                    strokeWidth={3}
-                    dot={false}
-                    isAnimationActive={true}
-                    animationDuration={650}
-                  />
+                  <Line type="monotone" dataKey="pnlPhp" stroke={theme.primary} strokeWidth={3} dot={false} isAnimationActive={true} animationDuration={650} />
                 </LineChart>
               </ResponsiveContainer>
             </div>
@@ -1988,9 +2029,7 @@ export default function DashboardClient({ latest }: Props) {
               </span>{" "}
               • Type:{" "}
               <span style={{ color: theme.text, fontWeight: 900 }}>
-                {scenarioExposureType === "receivable"
-                  ? "Receivable (Long USD)"
-                  : "Payable (Short USD)"}
+                {scenarioExposureType === "receivable" ? "Receivable (Long USD)" : "Payable (Short USD)"}
               </span>
             </div>
           </div>
@@ -2018,17 +2057,7 @@ function RiskCard({
 }) {
   return (
     <div style={{ ...cardStyle }}>
-      <div
-        style={{
-          color: theme.textMuted,
-          fontSize: 11,
-          fontWeight: 700,
-          textTransform: "uppercase",
-          letterSpacing: 1,
-        }}
-      >
-        {title}
-      </div>
+      <div style={{ color: theme.textMuted, fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: 1 }}>{title}</div>
       <div style={{ fontSize: 26, fontWeight: 900, margin: "12px 0", color: theme.text }}>{value}</div>
       <div style={{ fontSize: 13, fontWeight: 600, color: theme.textMuted }}>{sub}</div>
     </div>
