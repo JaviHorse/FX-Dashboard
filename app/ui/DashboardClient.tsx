@@ -75,7 +75,7 @@ type FanPoint = {
 // Two-sided z-scores (approx)
 const Z50 = 0.674; // 50%
 const Z75 = 1.150; // 75%
-const Z95 = 1.960; // 95%
+const Z95 = 1.96; // 95%
 
 function toISODate(d: Date) {
   return d.toISOString().slice(0, 10);
@@ -625,7 +625,15 @@ export default function DashboardClient({ latest }: Props) {
               Expected: ₱{fmt3(expected)}
             </div>
 
-            <div style={{ fontSize: 12, color: theme.textMuted, fontWeight: 800, display: "grid", gap: 6 }}>
+            <div
+              style={{
+                fontSize: 12,
+                color: theme.textMuted,
+                fontWeight: 800,
+                display: "grid",
+                gap: 6,
+              }}
+            >
               <div>
                 50% band:{" "}
                 <span style={{ color: theme.text, fontWeight: 900 }}>
@@ -946,74 +954,154 @@ export default function DashboardClient({ latest }: Props) {
             </div>
           </div>
 
+          {/* ============================================================
+              ✅ ONLY CHANGE: Upper-right layout (swap filter bar + presets)
+              - Filter bar (dates + Analyze) is now ABOVE
+              - Theme toggle is beside the preset pills BELOW
+              - Everything else stays the same
+              ============================================================ */}
           <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
-            <button
-              onClick={toggleTheme}
-              style={{
-                background: theme.card,
-                border: `1px solid ${theme.border}`,
-                padding: "10px",
-                borderRadius: "50%",
-                cursor: "pointer",
-                fontSize: 20,
-                width: 45,
-                height: 45,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                color: theme.text,
-              }}
-              aria-label="Toggle theme"
-              title="Toggle theme"
-            >
-              {isDark ? "🌞" : "🌙"}
-            </button>
-
-            <div
-              style={{
-                display: "flex",
-                gap: 4,
-                background: theme.card,
-                padding: 4,
-                borderRadius: 14,
-                border: `1px solid ${theme.border}`,
-              }}
-            >
-              {(["7D", "30D", "90D", "YTD"] as const).map((p) => (
-                <button
-                  key={p}
-                  disabled={loading}
-                  onClick={() => {
-                    if (p === "90D") {
-                      loadDefault90();
-                      return;
-                    }
-
-                    if (p === "YTD") {
-                      const year = defaultEnd.slice(0, 4);
-                      const s = `${year}-01-01`;
-                      applyRange(s, defaultEnd, "Year to Date", "YTD");
-                      return;
-                    }
-
-                    const days = p === "7D" ? 6 : 29;
-                    const s = isoDaysAgo(defaultEnd, days);
-                    applyRange(s, defaultEnd, p === "7D" ? "Last 7 Days" : "Last 30 Days", p);
+            <div style={{ display: "flex", flexDirection: "column", gap: 8, alignItems: "flex-end" }}>
+              {/* TOP ROW: Date filter bar */}
+              <div
+                style={{
+                  display: "flex",
+                  gap: 8,
+                  alignItems: "center",
+                  background: theme.card,
+                  padding: 4,
+                  borderRadius: 14,
+                  border: `1px solid ${theme.border}`,
+                }}
+              >
+                <input
+                  type="date"
+                  value={start}
+                  onChange={(e) => {
+                    setActivePreset("CUSTOM");
+                    setStart(e.target.value);
                   }}
                   style={{
-                    border: "none",
-                    background: activePreset === p ? theme.primary : "transparent",
-                    color: activePreset === p ? "white" : theme.textMuted,
-                    borderRadius: 10,
-                    padding: "8px 16px",
+                    ...inputStyle,
+                    padding: "8px 12px", // keep compact ONLY here
+                    fontSize: 13, // compact ONLY here
+                    background: "transparent",
+                    color: theme.text,
+                    borderColor: theme.border,
+                  }}
+                />
+
+                <span style={{ opacity: 0.3, fontWeight: 800 }}>→</span>
+
+                <input
+                  type="date"
+                  value={end}
+                  onChange={(e) => {
+                    setActivePreset("CUSTOM");
+                    setEnd(e.target.value);
+                  }}
+                  style={{
+                    ...inputStyle,
+                    padding: "8px 12px", // keep compact ONLY here
+                    fontSize: 13, // compact ONLY here
+                    background: "transparent",
+                    color: theme.text,
+                    borderColor: theme.border,
+                  }}
+                />
+
+                <button
+                  disabled={loading}
+                  onClick={() => {
+                    const norm = normalizeRange(start, end);
+                    applyRange(norm.s, norm.e, "Custom Range", "CUSTOM");
+                  }}
+                  style={{
+                    ...btnStyle,
+                    padding: "8px 16px", // keep compact ONLY here
+                    borderRadius: 12,
+                    background: theme.primary,
+                    opacity: loading ? 0.7 : 1,
                     cursor: loading ? "not-allowed" : "pointer",
-                    fontWeight: 700,
-                    transition: "0.2s",
+                    fontSize: 13, // compact ONLY here
+                    fontWeight: 800,
                   }}
                 >
-                  {p}
+                  Analyze Range
                 </button>
-              ))}
+              </div>
+
+              {/* BOTTOM ROW: Theme toggle beside preset pills */}
+              <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
+                <button
+                  onClick={toggleTheme}
+                  style={{
+                    background: theme.card,
+                    border: `1px solid ${theme.border}`,
+                    padding: "10px",
+                    borderRadius: "50%",
+                    cursor: "pointer",
+                    fontSize: 20,
+                    width: 45,
+                    height: 45,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    color: theme.text,
+                  }}
+                  aria-label="Toggle theme"
+                  title="Toggle theme"
+                >
+                  {isDark ? "🌞" : "🌙"}
+                </button>
+
+                <div
+                  style={{
+                    display: "flex",
+                    gap: 4,
+                    background: theme.card,
+                    padding: 4,
+                    borderRadius: 14,
+                    border: `1px solid ${theme.border}`,
+                  }}
+                >
+                  {(["7D", "30D", "90D", "YTD"] as const).map((p) => (
+                    <button
+                      key={p}
+                      disabled={loading}
+                      onClick={() => {
+                        if (p === "90D") {
+                          loadDefault90();
+                          return;
+                        }
+
+                        if (p === "YTD") {
+                          const year = defaultEnd.slice(0, 4);
+                          const s = `${year}-01-01`;
+                          applyRange(s, defaultEnd, "Year to Date", "YTD");
+                          return;
+                        }
+
+                        const days = p === "7D" ? 6 : 29;
+                        const s = isoDaysAgo(defaultEnd, days);
+                        applyRange(s, defaultEnd, p === "7D" ? "Last 7 Days" : "Last 30 Days", p);
+                      }}
+                      style={{
+                        border: "none",
+                        background: activePreset === p ? theme.primary : "transparent",
+                        color: activePreset === p ? "white" : theme.textMuted,
+                        borderRadius: 10,
+                        padding: "8px 16px",
+                        cursor: loading ? "not-allowed" : "pointer",
+                        fontWeight: 700,
+                        transition: "0.2s",
+                      }}
+                    >
+                      {p}
+                    </button>
+                  ))}
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -1291,8 +1379,7 @@ export default function DashboardClient({ latest }: Props) {
               <>
                 <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginBottom: 10 }}>
                   <span style={{ fontSize: 12, fontWeight: 800, color: theme.textMuted }}>
-                    Spot:{" "}
-                    <span style={{ color: theme.text, fontWeight: 900 }}>₱{fmt3(baseSpot)}</span>
+                    Spot: <span style={{ color: theme.text, fontWeight: 900 }}>₱{fmt3(baseSpot)}</span>
                   </span>
                   <span style={{ fontSize: 12, fontWeight: 800, color: theme.textMuted }}>
                     Vol used:{" "}
@@ -1346,7 +1433,7 @@ export default function DashboardClient({ latest }: Props) {
                         stackId="fan95"
                         stroke="none"
                         fill={theme.primary}
-                        fillOpacity={0.10}
+                        fillOpacity={0.1}
                         isAnimationActive
                         animationDuration={700}
                       />
@@ -1401,7 +1488,15 @@ export default function DashboardClient({ latest }: Props) {
                   </ResponsiveContainer>
                 </div>
 
-                <div style={{ marginTop: 10, fontSize: 12, color: theme.textMuted, fontWeight: 700, lineHeight: 1.35 }}>
+                <div
+                  style={{
+                    marginTop: 10,
+                    fontSize: 12,
+                    color: theme.textMuted,
+                    fontWeight: 700,
+                    lineHeight: 1.35,
+                  }}
+                >
                   Interpretation: The fan widens over time because uncertainty scales with √t. This is a
                   volatility-driven envelope (not a fundamental macro forecast).
                 </div>
@@ -1531,8 +1626,7 @@ export default function DashboardClient({ latest }: Props) {
                     onClick={() => setScenarioExposureType("receivable")}
                     style={{
                       ...btnStyle,
-                      background:
-                        scenarioExposureType === "receivable" ? theme.primary : "transparent",
+                      background: scenarioExposureType === "receivable" ? theme.primary : "transparent",
                       color: scenarioExposureType === "receivable" ? "white" : theme.textMuted,
                       border: `1px solid ${
                         scenarioExposureType === "receivable" ? theme.primary : theme.border
@@ -1546,8 +1640,7 @@ export default function DashboardClient({ latest }: Props) {
                     onClick={() => setScenarioExposureType("payable")}
                     style={{
                       ...btnStyle,
-                      background:
-                        scenarioExposureType === "payable" ? theme.primary : "transparent",
+                      background: scenarioExposureType === "payable" ? theme.primary : "transparent",
                       color: scenarioExposureType === "payable" ? "white" : theme.textMuted,
                       border: `1px solid ${
                         scenarioExposureType === "payable" ? theme.primary : theme.border
@@ -1627,7 +1720,9 @@ export default function DashboardClient({ latest }: Props) {
                       ...btnStyle,
                       background: scenarioDirection === "down" ? theme.primary : "transparent",
                       color: scenarioDirection === "down" ? "white" : theme.textMuted,
-                      border: `1px solid ${scenarioDirection === "down" ? theme.primary : theme.border}`,
+                      border: `1px solid ${
+                        scenarioDirection === "down" ? theme.primary : theme.border
+                      }`,
                       padding: "8px 12px",
                     }}
                   >
@@ -1723,7 +1818,14 @@ export default function DashboardClient({ latest }: Props) {
 
                   <div style={{ height: 1, background: theme.border, opacity: 0.7, margin: "6px 0" }} />
 
-                  <div style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "baseline" }}>
+                  <div
+                    style={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      gap: 10,
+                      alignItems: "baseline",
+                    }}
+                  >
                     <span style={{ fontSize: 12, color: theme.textMuted, fontWeight: 900 }}>
                       P/L Impact (PHP)
                     </span>
@@ -1739,7 +1841,15 @@ export default function DashboardClient({ latest }: Props) {
                     </span>
                   </div>
 
-                  <div style={{ marginTop: 8, fontSize: 12, color: theme.textMuted, fontWeight: 700, lineHeight: 1.35 }}>
+                  <div
+                    style={{
+                      marginTop: 8,
+                      fontSize: 12,
+                      color: theme.textMuted,
+                      fontWeight: 700,
+                      lineHeight: 1.35,
+                    }}
+                  >
                     Interpretation: A{" "}
                     <span style={{ color: theme.text, fontWeight: 900 }}>
                       {scenarioDirection === "up" ? "+" : "−"}
@@ -1751,7 +1861,10 @@ export default function DashboardClient({ latest }: Props) {
                     </span>{" "}
                     of{" "}
                     <span style={{ color: theme.text, fontWeight: 900 }}>
-                      PHP {Math.abs(scenario.deltaPhp).toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                      PHP{" "}
+                      {Math.abs(scenario.deltaPhp).toLocaleString(undefined, {
+                        maximumFractionDigits: 0,
+                      })}
                     </span>{" "}
                     on a{" "}
                     <span style={{ color: theme.text, fontWeight: 900 }}>
@@ -1788,7 +1901,8 @@ export default function DashboardClient({ latest }: Props) {
 
           <div style={{ ...cardStyle, padding: 20 }}>
             <div style={{ fontSize: 13, color: theme.textMuted, fontWeight: 700, marginBottom: 10 }}>
-              This curve visualizes how your estimated PHP P/L changes as USD/PHP moves. The vertical marker shows your current selected shock.
+              This curve visualizes how your estimated PHP P/L changes as USD/PHP moves. The vertical marker
+              shows your current selected shock.
             </div>
 
             <div style={{ height: 280, width: "100%" }}>
@@ -1817,7 +1931,9 @@ export default function DashboardClient({ latest }: Props) {
                     axisLine={false}
                     tickLine={false}
                     tick={{ fontSize: 11, fill: theme.textMuted }}
-                    tickFormatter={(v) => Number(v).toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                    tickFormatter={(v) =>
+                      Number(v).toLocaleString(undefined, { maximumFractionDigits: 0 })
+                    }
                     label={{
                       value: "P/L Impact (PHP)",
                       angle: -90,
@@ -1862,11 +1978,16 @@ export default function DashboardClient({ latest }: Props) {
               </span>{" "}
               • Exposure:{" "}
               <span style={{ color: theme.text, fontWeight: 900 }}>
-                USD {Math.max(0, Number(scenarioExposureUsd) || 0).toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                USD{" "}
+                {Math.max(0, Number(scenarioExposureUsd) || 0).toLocaleString(undefined, {
+                  maximumFractionDigits: 0,
+                })}
               </span>{" "}
               • Type:{" "}
               <span style={{ color: theme.text, fontWeight: 900 }}>
-                {scenarioExposureType === "receivable" ? "Receivable (Long USD)" : "Payable (Short USD)"}
+                {scenarioExposureType === "receivable"
+                  ? "Receivable (Long USD)"
+                  : "Payable (Short USD)"}
               </span>
             </div>
           </div>
