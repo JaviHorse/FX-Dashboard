@@ -1992,62 +1992,6 @@ export default function DashboardClient({ latest }: Props) {
             </div>
           </div>
         </div>
-
-        {/* ========================================
-            CUSTOM RANGE FILTER
-            ======================================== */}
-        <div
-          style={{
-            ...cardStyle,
-            display: "flex",
-            gap: 15,
-            flexWrap: "wrap",
-            alignItems: "center",
-            justifyContent: "center",
-          }}
-        >
-          <span style={{ fontSize: 12, fontWeight: 800, color: theme.textMuted, letterSpacing: 1 }}>
-            FILTER RANGE
-          </span>
-
-          <input
-            type="date"
-            value={start}
-            onChange={(e) => {
-              setActivePreset("CUSTOM");
-              setStart(e.target.value);
-            }}
-            style={{ ...inputStyle, background: theme.card, color: theme.text, borderColor: theme.border }}
-          />
-
-          <span style={{ opacity: 0.3 }}>→</span>
-
-          <input
-            type="date"
-            value={end}
-            onChange={(e) => {
-              setActivePreset("CUSTOM");
-              setEnd(e.target.value);
-            }}
-            style={{ ...inputStyle, background: theme.card, color: theme.text, borderColor: theme.border }}
-          />
-
-          <button
-            disabled={loading}
-            onClick={() => {
-              const norm = normalizeRange(start, end);
-              applyRange(norm.s, norm.e, "Custom Range", "CUSTOM");
-            }}
-            style={{
-              ...btnStyle,
-              background: theme.primary,
-              opacity: loading ? 0.7 : 1,
-              cursor: loading ? "not-allowed" : "pointer",
-            }}
-          >
-            Analyze Range
-          </button>
-        </div>
       </section>
     </main>
   );
