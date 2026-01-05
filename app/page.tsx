@@ -12,7 +12,7 @@ export default async function HomePage() {
   const protocol = process.env.NODE_ENV === "production" ? "https" : "http";
   const baseUrl = `${protocol}://${host}`;
 
-  const latest = await getLatestRate(baseUrl);
+  const latest = await getLatestRate();
 
   return (
     <main>
