@@ -55,6 +55,94 @@ function useAnimatedNumber(target: number, duration = 800) {
 }
 
 // ========================================
+// CONFIDENCE BANDS / FAN CHART HELPERS
+// ========================================
+type FanPoint = {
+  date: string;
+  expected: number;
+
+  // Baseline+band (upper-lower) lets Recharts fill a clean interval
+  base95: number;
+  band95: number;
+
+  base75: number;
+  band75: number;
+
+  base50: number;
+  band50: number;
+};
+
+// Two-sided z-scores (approx)
+const Z50 = 0.674; // 50%
+const Z75 = 1.150; // 75%
+const Z95 = 1.960; // 95%
+
+function toISODate(d: Date) {
+  return d.toISOString().slice(0, 10);
+}
+
+/**
+ * Volatility-driven lognormal envelope:
+ * expected_t = spot * exp(muDaily * t)
+ * band uses exp(± z * sigmaDaily * sqrt(t))
+ *
+ * annualVol is decimal (0.12 = 12%).
+ */
+function buildFanChart({
+  spot,
+  startDate,
+  annualVol,
+  muDaily = 0,
+  days = 30,
+}: {
+  spot: number;
+  startDate: Date;
+  annualVol: number;
+  muDaily?: number;
+  days?: number;
+}): FanPoint[] {
+  if (!Number.isFinite(spot) || spot <= 0) return [];
+  if (!Number.isFinite(annualVol) || annualVol <= 0) return [];
+
+  const tradingDays = 252;
+  const sigmaDaily = annualVol / Math.sqrt(tradingDays);
+
+  const out: FanPoint[] = [];
+  for (let t = 1; t <= days; t++) {
+    const d = new Date(startDate);
+    d.setDate(d.getDate() + t);
+
+    const expected = spot * Math.exp(muDaily * t);
+    const st = sigmaDaily * Math.sqrt(t);
+
+    const upper50 = expected * Math.exp(+Z50 * st);
+    const lower50 = expected * Math.exp(-Z50 * st);
+
+    const upper75 = expected * Math.exp(+Z75 * st);
+    const lower75 = expected * Math.exp(-Z75 * st);
+
+    const upper95 = expected * Math.exp(+Z95 * st);
+    const lower95 = expected * Math.exp(-Z95 * st);
+
+    out.push({
+      date: toISODate(d),
+      expected,
+
+      base95: lower95,
+      band95: upper95 - lower95,
+
+      base75: lower75,
+      band75: upper75 - lower75,
+
+      base50: lower50,
+      band50: upper50 - lower50,
+    });
+  }
+
+  return out;
+}
+
+// ========================================
 // MAIN COMPONENT
 // ========================================
 export default function DashboardClient({ latest }: Props) {
@@ -430,6 +518,140 @@ export default function DashboardClient({ latest }: Props) {
   }, [activePreset, vol30, vol90, isDark, theme]);
 
   // ========================================
+  // CONFIDENCE BANDS DATA (30D FAN CHART)
+  // ========================================
+  const baseSpot = useMemo(() => {
+    // Prefer latest; fallback to last chart point
+    const s =
+      Number.isFinite(Number(latest?.rate))
+        ? Number(latest.rate)
+        : chartData[chartData.length - 1]?.rate ?? 0;
+    return Number(s) || 0;
+  }, [latest, chartData]);
+
+  const lastChartDate = useMemo(() => {
+    const iso = chartData.length ? chartData[chartData.length - 1].date : latestISO;
+    return new Date(iso + "T00:00:00");
+  }, [chartData, latestISO]);
+
+  const fanAnnualVol = useMemo(() => {
+    // Match selected window: <=30 uses 30D vol; >30 uses 90D vol.
+    // If missing, show fallback message in UI.
+    const windowN = regimeWindowReturns(activePreset);
+    const v = windowN <= 30 ? vol30 : vol90;
+    return v ?? null;
+  }, [activePreset, vol30, vol90]);
+
+  const fanData = useMemo(() => {
+    if (!fanAnnualVol || !Number.isFinite(fanAnnualVol) || fanAnnualVol <= 0) return [];
+    if (!Number.isFinite(baseSpot) || baseSpot <= 0) return [];
+    return buildFanChart({
+      spot: baseSpot,
+      startDate: lastChartDate,
+      annualVol: fanAnnualVol,
+      muDaily: 0,
+      days: 30,
+    });
+  }, [fanAnnualVol, baseSpot, lastChartDate]);
+
+  const fanChartMerged = useMemo(() => {
+    const hist = chartData.map((p) => ({
+      date: p.date,
+      rate: p.rate,
+    }));
+
+    const fwd = fanData.map((p) => ({
+      date: p.date,
+      expected: p.expected,
+      base95: p.base95,
+      band95: p.band95,
+      base75: p.base75,
+      band75: p.band75,
+      base50: p.base50,
+      band50: p.band50,
+    }));
+
+    return [...hist, ...fwd];
+  }, [chartData, fanData]);
+
+  // Tooltip for Fan Chart (consistent style)
+  const FanTooltip = ({ active, payload, label }: any) => {
+    if (!active || !payload?.length) return null;
+
+    const row = payload[0]?.payload ?? {};
+
+    const expected = row.expected;
+    const rate = row.rate;
+
+    const lo50 = Number.isFinite(row.base50) ? row.base50 : null;
+    const up50 =
+      Number.isFinite(row.base50) && Number.isFinite(row.band50) ? row.base50 + row.band50 : null;
+
+    const lo75 = Number.isFinite(row.base75) ? row.base75 : null;
+    const up75 =
+      Number.isFinite(row.base75) && Number.isFinite(row.band75) ? row.base75 + row.band75 : null;
+
+    const lo95 = Number.isFinite(row.base95) ? row.base95 : null;
+    const up95 =
+      Number.isFinite(row.base95) && Number.isFinite(row.band95) ? row.base95 + row.band95 : null;
+
+    const isForecast = Number.isFinite(expected);
+
+    return (
+      <div
+        style={{
+          background: isDark ? "#1e293b" : "#ffffff",
+          color: isDark ? "#f1f5f9" : "#1e293b",
+          padding: "14px",
+          borderRadius: "16px",
+          border: `1px solid ${isDark ? "rgba(255,255,255,0.1)" : "#e2e8f0"}`,
+          boxShadow: "0 10px 15px -3px rgba(0,0,0,0.1)",
+          minWidth: 240,
+        }}
+      >
+        <div style={{ fontSize: 11, opacity: 0.65, marginBottom: 8, fontWeight: 800 }}>
+          {label} {isForecast ? "• Forecast" : "• History"}
+        </div>
+
+        {Number.isFinite(rate) && (
+          <div style={{ fontSize: 13, fontWeight: 900, marginBottom: 8 }}>
+            Spot: ₱{fmt3(rate)}
+          </div>
+        )}
+
+        {isForecast && (
+          <>
+            <div style={{ fontSize: 16, fontWeight: 950, marginBottom: 10 }}>
+              Expected: ₱{fmt3(expected)}
+            </div>
+
+            <div style={{ fontSize: 12, color: theme.textMuted, fontWeight: 800, display: "grid", gap: 6 }}>
+              <div>
+                50% band:{" "}
+                <span style={{ color: theme.text, fontWeight: 900 }}>
+                  {lo50 != null && up50 != null ? `₱${fmt3(lo50)} – ₱${fmt3(up50)}` : "—"}
+                </span>
+              </div>
+              <div>
+                75% band:{" "}
+                <span style={{ color: theme.text, fontWeight: 900 }}>
+                  {lo75 != null && up75 != null ? `₱${fmt3(lo75)} – ₱${fmt3(up75)}` : "—"}
+                </span>
+              </div>
+              <div>
+                95% band:{" "}
+                <span style={{ color: theme.text, fontWeight: 900 }}>
+                  {lo95 != null && up95 != null ? `₱${fmt3(lo95)} – ₱${fmt3(up95)}` : "—"}
+                </span>
+              </div>
+            </div>
+          </>
+        )}
+      </div>
+    );
+  };
+
+  // ========================================
   //  Scenario Simulator Calculations (uses current/latest rate)
   // ========================================
   const scenario = useMemo(() => {
@@ -520,7 +742,7 @@ export default function DashboardClient({ latest }: Props) {
   // ========================================
   // Tooltip for Sensitivity Curve
   // ========================================
-  const SensitivityTooltip = ({ active, payload, label }: any) => {
+  const SensitivityTooltip = ({ active, payload }: any) => {
     if (!active || !payload?.length) return null;
 
     const row = payload[0]?.payload as { shock: number; pnlPhp: number; shockedRate: number };
@@ -561,7 +783,10 @@ export default function DashboardClient({ latest }: Props) {
         <div style={{ marginTop: 8, fontSize: 12, color: theme.textMuted, fontWeight: 700 }}>
           {scenarioExposureType === "receivable" ? "Receivable (Long USD)" : "Payable (Short USD)"}
           {" • "}
-          USD {Math.max(0, Number(scenarioExposureUsd) || 0).toLocaleString(undefined, { maximumFractionDigits: 0 })}
+          USD{" "}
+          {Math.max(0, Number(scenarioExposureUsd) || 0).toLocaleString(undefined, {
+            maximumFractionDigits: 0,
+          })}
         </div>
       </div>
     );
@@ -911,7 +1136,9 @@ export default function DashboardClient({ latest }: Props) {
               </span>
 
               {loading && (
-                <span style={{ fontSize: 12, color: theme.textMuted, marginLeft: 8 }}>Loading…</span>
+                <span style={{ fontSize: 12, color: theme.textMuted, marginLeft: 8 }}>
+                  Loading…
+                </span>
               )}
             </div>
 
@@ -987,7 +1214,9 @@ export default function DashboardClient({ latest }: Props) {
                   />
                 )}
 
-                <Tooltip content={<EnhancedTooltip isDark={isDark} theme={theme} chartData={chartData} />} />
+                <Tooltip
+                  content={<EnhancedTooltip isDark={isDark} theme={theme} chartData={chartData} />}
+                />
 
                 <Area
                   type="monotone"
@@ -1024,6 +1253,160 @@ export default function DashboardClient({ latest }: Props) {
               fill={theme.card}
               travellerWidth={10}
             />
+          </div>
+        </div>
+
+        {/* ========================================
+            FX OUTLOOK (CONFIDENCE BANDS / FAN CHART)
+            ======================================== */}
+        <div style={{ display: "grid", gap: 14 }}>
+          <div
+            style={{
+              display: "flex",
+              alignItems: "baseline",
+              justifyContent: "space-between",
+              gap: 12,
+              flexWrap: "wrap",
+            }}
+          >
+            <div style={{ fontWeight: 900, letterSpacing: -0.5, fontSize: 16 }}>
+              FX Outlook (30D Confidence Bands)
+            </div>
+            <div style={{ fontSize: 12, color: theme.textMuted, fontWeight: 700 }}>
+              Volatility-driven envelope • 50% / 75% / 95%
+            </div>
+          </div>
+
+          <div style={{ ...cardStyle, padding: 20 }}>
+            <div style={{ fontSize: 13, color: theme.textMuted, fontWeight: 700, marginBottom: 10 }}>
+              Shaded bands show a probabilistic range of USD/PHP outcomes over the next 30 days based on the
+              current volatility regime (annualized) from your selected window.
+            </div>
+
+            {!fanAnnualVol ? (
+              <div style={{ fontSize: 13, color: theme.textMuted, fontWeight: 800 }}>
+                Not enough data to compute confidence bands for this window.
+              </div>
+            ) : (
+              <>
+                <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginBottom: 10 }}>
+                  <span style={{ fontSize: 12, fontWeight: 800, color: theme.textMuted }}>
+                    Spot:{" "}
+                    <span style={{ color: theme.text, fontWeight: 900 }}>₱{fmt3(baseSpot)}</span>
+                  </span>
+                  <span style={{ fontSize: 12, fontWeight: 800, color: theme.textMuted }}>
+                    Vol used:{" "}
+                    <span style={{ color: theme.text, fontWeight: 900 }}>
+                      {fmtPct2((fanAnnualVol ?? 0) * 100)}%
+                    </span>{" "}
+                    <span style={{ opacity: 0.75 }}>(annualized)</span>
+                  </span>
+                  <span style={{ fontSize: 12, fontWeight: 800, color: theme.textMuted }}>
+                    Start:{" "}
+                    <span style={{ color: theme.text, fontWeight: 900 }}>
+                      {chartData.length ? chartData[chartData.length - 1].date : latestISO}
+                    </span>
+                  </span>
+                </div>
+
+                <div style={{ height: 320, width: "100%" }}>
+                  <ResponsiveContainer width="100%" height="100%">
+                    <AreaChart data={fanChartMerged} margin={{ top: 10, right: 20, bottom: 0, left: 0 }}>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={theme.grid} />
+
+                      <XAxis
+                        dataKey="date"
+                        axisLine={false}
+                        tickLine={false}
+                        tick={{ fontSize: 11, fill: theme.textMuted }}
+                        minTickGap={40}
+                      />
+
+                      <YAxis
+                        domain={["auto", "auto"]}
+                        axisLine={false}
+                        tickLine={false}
+                        tick={{ fontSize: 11, fill: theme.textMuted }}
+                      />
+
+                      <Tooltip content={<FanTooltip />} />
+
+                      {/* Spot reference */}
+                      <ReferenceLine
+                        y={baseSpot}
+                        stroke={theme.textMuted}
+                        strokeDasharray="4 4"
+                        strokeOpacity={0.55}
+                      />
+
+                      {/* 95% band (widest) */}
+                      <Area dataKey="base95" stackId="fan95" stroke="none" fillOpacity={0} />
+                      <Area
+                        dataKey="band95"
+                        stackId="fan95"
+                        stroke="none"
+                        fill={theme.primary}
+                        fillOpacity={0.10}
+                        isAnimationActive
+                        animationDuration={700}
+                      />
+
+                      {/* 75% band */}
+                      <Area dataKey="base75" stackId="fan75" stroke="none" fillOpacity={0} />
+                      <Area
+                        dataKey="band75"
+                        stackId="fan75"
+                        stroke="none"
+                        fill={theme.primary}
+                        fillOpacity={0.16}
+                        isAnimationActive
+                        animationDuration={700}
+                      />
+
+                      {/* 50% band (tightest) */}
+                      <Area dataKey="base50" stackId="fan50" stroke="none" fillOpacity={0} />
+                      <Area
+                        dataKey="band50"
+                        stackId="fan50"
+                        stroke="none"
+                        fill={theme.primary}
+                        fillOpacity={0.22}
+                        isAnimationActive
+                        animationDuration={700}
+                      />
+
+                      {/* Expected path */}
+                      <Line
+                        type="monotone"
+                        dataKey="expected"
+                        stroke={theme.accent}
+                        strokeWidth={3}
+                        dot={false}
+                        isAnimationActive
+                        animationDuration={700}
+                      />
+
+                      {/* Historical continuation */}
+                      <Line
+                        type="monotone"
+                        dataKey="rate"
+                        stroke={theme.textMuted}
+                        strokeWidth={2}
+                        dot={false}
+                        strokeDasharray="5 5"
+                        strokeOpacity={0.65}
+                        isAnimationActive={false}
+                      />
+                    </AreaChart>
+                  </ResponsiveContainer>
+                </div>
+
+                <div style={{ marginTop: 10, fontSize: 12, color: theme.textMuted, fontWeight: 700, lineHeight: 1.35 }}>
+                  Interpretation: The fan widens over time because uncertainty scales with √t. This is a
+                  volatility-driven envelope (not a fundamental macro forecast).
+                </div>
+              </>
+            )}
           </div>
         </div>
 
@@ -1101,9 +1484,12 @@ export default function DashboardClient({ latest }: Props) {
               flexWrap: "wrap",
             }}
           >
-            <div style={{ fontWeight: 900, letterSpacing: -0.5, fontSize: 16 }}>Scenario Simulator</div>
+            <div style={{ fontWeight: 900, letterSpacing: -0.5, fontSize: 16 }}>
+              Scenario Simulator
+            </div>
             <div style={{ fontSize: 12, color: theme.textMuted, fontWeight: 700 }}>
-              Sensitivity analysis using current rate • {Number.isFinite(scenario.rate) ? `₱${fmt3(scenario.rate)}` : "—"}
+              Sensitivity analysis using current rate •{" "}
+              {Number.isFinite(scenario.rate) ? `₱${fmt3(scenario.rate)}` : "—"}
             </div>
           </div>
 
@@ -1112,7 +1498,13 @@ export default function DashboardClient({ latest }: Props) {
               Simulate USD/PHP moves and estimate the PHP impact on a USD exposure.
             </div>
 
-            <div style={{ display: "grid", gap: 16, gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))" }}>
+            <div
+              style={{
+                display: "grid",
+                gap: 16,
+                gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",
+              }}
+            >
               {/* Exposure */}
               <div
                 style={{
@@ -1139,9 +1531,12 @@ export default function DashboardClient({ latest }: Props) {
                     onClick={() => setScenarioExposureType("receivable")}
                     style={{
                       ...btnStyle,
-                      background: scenarioExposureType === "receivable" ? theme.primary : "transparent",
+                      background:
+                        scenarioExposureType === "receivable" ? theme.primary : "transparent",
                       color: scenarioExposureType === "receivable" ? "white" : theme.textMuted,
-                      border: `1px solid ${scenarioExposureType === "receivable" ? theme.primary : theme.border}`,
+                      border: `1px solid ${
+                        scenarioExposureType === "receivable" ? theme.primary : theme.border
+                      }`,
                       padding: "8px 12px",
                     }}
                   >
@@ -1151,9 +1546,12 @@ export default function DashboardClient({ latest }: Props) {
                     onClick={() => setScenarioExposureType("payable")}
                     style={{
                       ...btnStyle,
-                      background: scenarioExposureType === "payable" ? theme.primary : "transparent",
+                      background:
+                        scenarioExposureType === "payable" ? theme.primary : "transparent",
                       color: scenarioExposureType === "payable" ? "white" : theme.textMuted,
-                      border: `1px solid ${scenarioExposureType === "payable" ? theme.primary : theme.border}`,
+                      border: `1px solid ${
+                        scenarioExposureType === "payable" ? theme.primary : theme.border
+                      }`,
                       padding: "8px 12px",
                     }}
                   >
@@ -1162,7 +1560,14 @@ export default function DashboardClient({ latest }: Props) {
                 </div>
 
                 <div style={{ marginTop: 12 }}>
-                  <div style={{ fontSize: 12, fontWeight: 800, color: theme.textMuted, marginBottom: 6 }}>
+                  <div
+                    style={{
+                      fontSize: 12,
+                      fontWeight: 800,
+                      color: theme.textMuted,
+                      marginBottom: 6,
+                    }}
+                  >
                     Exposure Amount (USD)
                   </div>
                   <input
@@ -1231,7 +1636,14 @@ export default function DashboardClient({ latest }: Props) {
                 </div>
 
                 <div style={{ marginTop: 12 }}>
-                  <div style={{ fontSize: 12, fontWeight: 800, color: theme.textMuted, marginBottom: 6 }}>
+                  <div
+                    style={{
+                      fontSize: 12,
+                      fontWeight: 800,
+                      color: theme.textMuted,
+                      marginBottom: 6,
+                    }}
+                  >
                     Shock Size (%)
                   </div>
 
@@ -1292,14 +1704,18 @@ export default function DashboardClient({ latest }: Props) {
 
                 <div style={{ marginTop: 12, display: "grid", gap: 10 }}>
                   <div style={{ display: "flex", justifyContent: "space-between", gap: 10 }}>
-                    <span style={{ fontSize: 12, color: theme.textMuted, fontWeight: 800 }}>Baseline (PHP)</span>
+                    <span style={{ fontSize: 12, color: theme.textMuted, fontWeight: 800 }}>
+                      Baseline (PHP)
+                    </span>
                     <span style={{ fontSize: 14, fontWeight: 900 }}>
                       {scenario.baselinePhp.toLocaleString(undefined, { maximumFractionDigits: 0 })}
                     </span>
                   </div>
 
                   <div style={{ display: "flex", justifyContent: "space-between", gap: 10 }}>
-                    <span style={{ fontSize: 12, color: theme.textMuted, fontWeight: 800 }}>Shocked (PHP)</span>
+                    <span style={{ fontSize: 12, color: theme.textMuted, fontWeight: 800 }}>
+                      Shocked (PHP)
+                    </span>
                     <span style={{ fontSize: 14, fontWeight: 900 }}>
                       {scenario.shockedPhp.toLocaleString(undefined, { maximumFractionDigits: 0 })}
                     </span>
@@ -1308,7 +1724,9 @@ export default function DashboardClient({ latest }: Props) {
                   <div style={{ height: 1, background: theme.border, opacity: 0.7, margin: "6px 0" }} />
 
                   <div style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "baseline" }}>
-                    <span style={{ fontSize: 12, color: theme.textMuted, fontWeight: 900 }}>P/L Impact (PHP)</span>
+                    <span style={{ fontSize: 12, color: theme.textMuted, fontWeight: 900 }}>
+                      P/L Impact (PHP)
+                    </span>
                     <span
                       style={{
                         fontSize: 16,
@@ -1399,9 +1817,7 @@ export default function DashboardClient({ latest }: Props) {
                     axisLine={false}
                     tickLine={false}
                     tick={{ fontSize: 11, fill: theme.textMuted }}
-                    tickFormatter={(v) =>
-                      Number(v).toLocaleString(undefined, { maximumFractionDigits: 0 })
-                    }
+                    tickFormatter={(v) => Number(v).toLocaleString(undefined, { maximumFractionDigits: 0 })}
                     label={{
                       value: "P/L Impact (PHP)",
                       angle: -90,
