@@ -6,7 +6,7 @@ export const dynamic = "force-dynamic";
 
 type ExchangeRateRow = {
   date: Date;
-  rate: Prisma.Decimal;
+  rate: any;
 };
 
 export async function GET(req: Request) {
