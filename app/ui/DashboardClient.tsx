@@ -1547,7 +1547,7 @@ Operational Impact
           {narrativeLeftText ? (
             <NarrativeCard
               key={`core-${narrativeRegimeKey}`}
-              title="Narrative Header"
+              title="Volatility Regime Narrative"
               subtitle="Core Narrative Interpretation"
               pillLabel={volRegime.label}
               pillStyle={{ bg: volRegime.bg, border: volRegime.border, color: volRegime.color }}
