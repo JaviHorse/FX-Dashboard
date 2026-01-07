@@ -4,34 +4,19 @@ import axios from "axios";
 import * as cheerio from "cheerio";
 import { PrismaClient } from "@prisma/client";
 
-export const dynamic = "force-dynamic";
-export const runtime = "nodejs"; // important for Prisma on Vercel
-
 const prisma = new PrismaClient();
 
-// ✅ FIX: do NOT name this "URL" (it shadows the global URL constructor)
+// IMPORTANT: don't name this "URL" because it breaks `new URL(req.url)`
 const BSP_URL = "https://www.bsp.gov.ph/statistics/external/day99_data.aspx";
 const PAIR = "USD/PHP";
 
 function parseMonthYear(label: string): { month: number; year: number } | null {
-  const m = label
-    .trim()
-    .match(/^(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)-(\d{2})$/i);
+  const m = label.trim().match(/^(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)-(\d{2})$/i);
   if (!m) return null;
 
   const monthMap: Record<string, number> = {
-    Jan: 1,
-    Feb: 2,
-    Mar: 3,
-    Apr: 4,
-    May: 5,
-    Jun: 6,
-    Jul: 7,
-    Aug: 8,
-    Sep: 9,
-    Oct: 10,
-    Nov: 11,
-    Dec: 12,
+    Jan: 1, Feb: 2, Mar: 3, Apr: 4, May: 5, Jun: 6,
+    Jul: 7, Aug: 8, Sep: 9, Oct: 10, Nov: 11, Dec: 12,
   };
 
   const key = m[1][0].toUpperCase() + m[1].slice(1, 3).toLowerCase();
@@ -42,110 +27,151 @@ function parseMonthYear(label: string): { month: number; year: number } | null {
   return { month, year };
 }
 
-function trimNonEmpty(arr: string[]): string[] {
-  return arr.map((s) => s.trim()).filter((s) => s !== "");
+function trimAll(arr: string[]): string[] {
+  return arr.map((s) => (s ?? "").trim());
 }
 
-function trimKeepBlanks(arr: string[]): string[] {
-  return arr.map((s) => s.trim()); // IMPORTANT: keep blanks to preserve alignment
+function cleanCells(arr: string[]): string[] {
+  return arr.map((s) => (s ?? "").trim()).filter((s) => s !== "");
+}
+
+function getManilaTodayEndUtc(): Date {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Manila",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(new Date());
+
+  const y = Number(parts.find((p) => p.type === "year")?.value);
+  const m = Number(parts.find((p) => p.type === "month")?.value);
+  const d = Number(parts.find((p) => p.type === "day")?.value);
+
+  return new Date(Date.UTC(y, m - 1, d, 15, 59, 59, 999));
 }
 
 export async function GET(req: Request) {
   try {
-    // (Optional but recommended) Protect endpoint with a secret
+    const urlObj = new URL(req.url);
+
     const secret = process.env.CRON_SECRET;
     if (secret) {
-      const got = new URL(req.url).searchParams.get("secret");
+      const got = urlObj.searchParams.get("secret");
       if (got !== secret) {
         return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });
       }
     }
 
-    console.log("[cron] Fetching BSP exchange rate data...");
+    // get latest row BEFORE import (for debug)
+    const beforeLatest = await prisma.exchangeRate.findFirst({
+      where: { pair: PAIR },
+      orderBy: { date: "desc" },
+      select: { date: true, rate: true },
+    });
 
     const res = await axios.get(BSP_URL, {
       headers: {
         "User-Agent":
           "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome Safari",
       },
-      timeout: 30_000,
     });
 
     const $ = cheerio.load(res.data);
 
     const table = $("table").first();
-    const rows = table.find("tr");
+    const rows = table.find("tr").toArray();
     if (!rows.length) throw new Error("No rows found.");
 
-    // 1) Find header row
-    let headerIndex = -1;
-    let headerCells: string[] = [];
+    const cutoffUtc = getManilaTodayEndUtc();
 
-    rows.each((i, row) => {
+    // 1) Find header row (must contain "Date" + month labels)
+    let headerRowIndex = -1;
+    let headerRawTrimmed: string[] = [];
+
+    for (let i = 0; i < rows.length; i++) {
+      const row = rows[i] as any;
       const raw = $(row)
         .find("th,td")
         .map((_, el) => $(el).text())
         .get() as string[];
 
-      const cells = trimNonEmpty(raw);
+      const rawTrimmed = trimAll(raw);
+      const cleaned = cleanCells(rawTrimmed);
 
-      const hasDate = cells.some((c) => /^Date$/i.test(c));
-      const hasMonth = cells.some((c) => parseMonthYear(c) !== null);
+      const hasDate = cleaned.some((c) => /^Date$/i.test(c));
+      const hasMonth = cleaned.some((c) => parseMonthYear(c) !== null);
 
-      if (hasDate && hasMonth && headerIndex === -1) {
-        headerIndex = i;
-        headerCells = cells;
+      if (hasDate && hasMonth) {
+        headerRowIndex = i;
+        headerRawTrimmed = rawTrimmed;
+        break;
       }
-    });
+    }
 
-    if (headerIndex === -1) throw new Error("Header row not found.");
+    if (headerRowIndex === -1) throw new Error("Header row not found.");
 
-    const datePos = headerCells.findIndex((c) => /^Date$/i.test(c));
-    if (datePos === -1) throw new Error("Header row found but 'Date' not present.");
+    const datePos = headerRawTrimmed.findIndex((c) => /^Date$/i.test(c));
+    if (datePos === -1) throw new Error("Header row found but 'Date' not present in raw cells.");
 
-    const monthHeaders = headerCells.slice(datePos + 1);
-    const months = monthHeaders
-      .map(parseMonthYear)
-      .filter(Boolean) as { month: number; year: number }[];
+    const monthHeaderCellsRaw = headerRawTrimmed.slice(datePos + 1);
+    const monthsByIndex = monthHeaderCellsRaw.map((cell) => parseMonthYear(cell));
+    const monthCount = monthsByIndex.filter(Boolean).length;
 
-    if (months.length === 0) throw new Error("No months parsed from header.");
+    if (monthCount === 0) throw new Error("No months parsed from header.");
 
     let upserts = 0;
 
-    // 2) Parse data rows (keep blanks!)
-    for (let r = headerIndex + 1; r < rows.length; r++) {
-      const raw = rows
-        .eq(r)
+    // Optional debug for days 6/7
+    const debugDays = new Set([6, 7]);
+    const debug: any[] = [];
+
+    // 2) Parse rows after header
+    for (let r = headerRowIndex + 1; r < rows.length; r++) {
+      const row = rows[r] as any;
+
+      const raw = $(row)
         .find("th,td")
         .map((_, el) => $(el).text())
         .get() as string[];
 
-      const cells = trimKeepBlanks(raw);
-      if (!cells.length) continue;
+      const rawCells = trimAll(raw); // KEEP BLANKS
 
-      const day = parseInt(cells[0], 10);
-      if (!Number.isFinite(day)) continue;
+      if (!rawCells.length) continue;
 
-      const rates = cells.slice(1);
-      if (rates.length === 0) continue;
+      const dayText = rawCells[datePos] ?? "";
+      const day = parseInt(dayText, 10);
+      if (Number.isNaN(day)) continue;
 
-      // Align months to number of rate columns
-      const monthsForRow = months.slice(-rates.length);
-      if (monthsForRow.length !== rates.length) continue;
+      const rates = rawCells.slice(datePos + 1, datePos + 1 + monthsByIndex.length);
+      if (!rates.length) continue;
 
-      for (let i = 0; i < rates.length; i++) {
-        const rateText = rates[i]?.replace(/,/g, "").trim();
+      if (debugDays.has(day)) {
+        debug.push({
+          day,
+          rawCells,
+          rates,
+          monthsByIndexLength: monthsByIndex.length,
+        });
+      }
+
+      for (let i = 0; i < rates.length && i < monthsByIndex.length; i++) {
+        const ym = monthsByIndex[i];
+        if (!ym) continue;
+
+        const rateText = (rates[i] ?? "").replace(/,/g, "").trim();
         if (!rateText) continue;
 
         const rate = parseFloat(rateText);
-        if (!Number.isFinite(rate)) continue;
+        if (Number.isNaN(rate)) continue;
 
-        const { year, month } = monthsForRow[i];
-        const date = new Date(Date.UTC(year, month - 1, day, 12, 0, 0)); // noon UTC stable
+        const date = new Date(Date.UTC(ym.year, ym.month - 1, day, 12, 0, 0));
+
+        // skip future placeholders beyond Manila "today"
+        if (date.getTime() > cutoffUtc.getTime()) continue;
 
         await prisma.exchangeRate.upsert({
           where: { pair_date: { pair: PAIR, date } },
-          update: { rate },
+          update: { rate, source: "BSP" },
           create: { pair: PAIR, date, rate, source: "BSP" },
         });
 
@@ -153,16 +179,35 @@ export async function GET(req: Request) {
       }
     }
 
-    console.log(`[cron] ✅ Imported successfully. Upserts: ${upserts}`);
+    // latest after import
+    const afterLatest = await prisma.exchangeRate.findFirst({
+      where: { pair: PAIR },
+      orderBy: { date: "desc" },
+      select: { date: true, rate: true },
+    });
 
-    return NextResponse.json({ ok: true, upserts });
+    return NextResponse.json({
+      ok: true,
+      upserts,
+      latestInDb: afterLatest?.date?.toISOString() ?? null,
+      latestRate: afterLatest?.rate ?? null,
+      beforeLatestInDb: beforeLatest?.date?.toISOString() ?? null,
+      beforeLatestRate: beforeLatest?.rate ?? null,
+      headerRowIndex,
+      datePos,
+      parsedMonths: monthCount,
+      cutoffUtc: cutoffUtc.toISOString(),
+      debug, // includes days 6 & 7 row snapshots
+    });
   } catch (e: any) {
-    console.error("[cron] ❌ Import failed:", e?.message ?? e);
+    console.error("❌ import-bsp cron failed:", e);
     return NextResponse.json(
-      { ok: false, error: e?.message ?? "Import failed" },
+      { ok: false, error: e?.message ?? "Unknown error" },
       { status: 500 }
     );
   } finally {
-    await prisma.$disconnect();
+    // Prisma in serverless is often reused; disconnecting is optional.
+    // Keeping it here is fine if you're not using Prisma Accelerate.
+    await prisma.$disconnect().catch(() => {});
   }
 }
