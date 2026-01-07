@@ -234,19 +234,19 @@ function zContext(z: number | null) {
     return {
       label: "Extreme move",
       tone: "bad" as const,
-      blurb: "Price is far from its recent norm — treat as high attention.",
+      blurb: "Price is far from its recent norm —> treat as high attention.",
     };
   if (az >= 1.25)
     return {
       label: "Stretched",
       tone: "warn" as const,
-      blurb: "Price is noticeably away from the average — review exposures today.",
+      blurb: "Price is noticeably away from the average —> review exposures today.",
     };
   if (az >= 0.6)
     return {
       label: "Leaning",
       tone: "info" as const,
-      blurb: "A mild drift away from the mean — keep an eye on direction.",
+      blurb: "A mild drift away from the mean —> keep an eye on direction.",
     };
   return {
     label: "Near average",
@@ -292,7 +292,7 @@ function explainRecent(a: AlertItem) {
           return "This move is big enough to change today’s risk. If you have USD-related costs or payments, your expected peso amount can shift fast.";
         }
         if (a.severity === "ALERT") {
-          return "This is a meaningful shift — not just normal daily movement. It can affect your near-term budget, pricing, or hedge timing.";
+          return "This is a meaningful shift, not just normal daily movement. It can affect your near-term budget, pricing, or hedge timing.";
         }
         return "This looks like an early warning. It may be the start of a bigger move, so it’s worth watching before it gets expensive.";
       })();
@@ -632,7 +632,7 @@ export default function AlertsPage() {
                       </div>
                       <div className="mt-2 text-sm text-emerald-100/90">
                         That’s actually useful: it means the market is behaving within its recent “normal zone.” If you
-                        need action, check exposures or set tighter internal limits — not your FX feed.
+                        need action, check exposures or set tighter internal limits and not your FX feed.
                       </div>
                     </div>
                     <span className="inline-flex items-center rounded-full bg-emerald-400/15 px-3 py-1 text-xs ring-1 ring-emerald-400/25 text-emerald-100">
@@ -726,7 +726,7 @@ export default function AlertsPage() {
 
               {!loading && alerts.length === 0 && (
                 <div className="mt-4 rounded-2xl bg-emerald-500/10 p-4 ring-1 ring-emerald-400/20 text-sm text-emerald-100">
-                  No recent alerts. That means nothing has crossed your thresholds — the market is behaving within its
+                  No recent alerts. That means nothing has crossed your thresholds, the market is behaving within its
                   normal range.
                 </div>
               )}
