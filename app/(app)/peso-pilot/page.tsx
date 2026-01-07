@@ -4,14 +4,27 @@ import DashboardClient from "@/app/ui/DashboardClient";
 
 export const dynamic = "force-dynamic";
 
+// ✅ FIX: use end-of-day UTC so "today's" 12:00 UTC row is included
+function getUtcEndOfToday(): Date {
+  const now = new Date();
+  return new Date(
+    Date.UTC(
+      now.getUTCFullYear(),
+      now.getUTCMonth(),
+      now.getUTCDate(),
+      23, 59, 59, 999
+    )
+  );
+}
+
 export default async function PesoPilotPage() {
-  const today = new Date();
+  const cutoffUtc = getUtcEndOfToday();
 
   const latest = await prisma.exchangeRate.findFirst({
     where: {
       pair: "USD/PHP",
       source: "BSP",
-      date: { lte: today },
+      date: { lte: cutoffUtc }, // ✅ was: new Date()
     },
     orderBy: { date: "desc" },
     select: {
@@ -28,7 +41,6 @@ export default async function PesoPilotPage() {
 
   return (
     <main className="min-h-screen bg-[#070B18] text-white">
-      {/* Nice header bar */}
       <header className="sticky top-0 z-50 border-b border-white/10 bg-[#070B18]/70 backdrop-blur">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
           <div className="flex items-center gap-3">
@@ -61,7 +73,6 @@ export default async function PesoPilotPage() {
         </div>
       </header>
 
-      {/* Your existing dashboard UI */}
       <div className="mx-auto max-w-6xl px-6 py-8">
         <DashboardClient
           latest={{
