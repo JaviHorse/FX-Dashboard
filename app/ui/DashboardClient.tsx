@@ -1157,7 +1157,7 @@ Operational Impact
           <div>
             <h1 style={{ fontSize: 40, fontWeight: 900, margin: 0, letterSpacing: "-1.5px" }}>Peso Pilot</h1>
             <p style={{ color: theme.textMuted, margin: "4px 0 0 0", fontSize: 16 }}>
-              USD/PHP Market Analytics by Javier Macasaet and Unno Marquez
+              USD/PHP Market Analytics
             </p>
 
             {/* ========================================

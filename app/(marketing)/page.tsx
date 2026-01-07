@@ -72,7 +72,7 @@ export default async function HomePage() {
             </div>
             <div className="leading-tight">
               <div className="text-base font-semibold">Peso Pilot</div>
-              <div className="text-xs text-white/60">USD/PHP Market Analytics</div>
+              <div className="text-xs text-white/60">USD/PHP Market Analytics by Javier Macasaet and Unno Marquez</div>
             </div>
           </div>
 
