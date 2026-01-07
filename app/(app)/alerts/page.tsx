@@ -234,19 +234,19 @@ function zContext(z: number | null) {
     return {
       label: "Extreme move",
       tone: "bad" as const,
-      blurb: "Price is far from its recent norm —> treat as high attention.",
+      blurb: "Price is far from its recent norm → treat as high attention.",
     };
   if (az >= 1.25)
     return {
       label: "Stretched",
       tone: "warn" as const,
-      blurb: "Price is noticeably away from the average —> review exposures today.",
+      blurb: "Price is noticeably away from the average → review exposures today.",
     };
   if (az >= 0.6)
     return {
       label: "Leaning",
       tone: "info" as const,
-      blurb: "A mild drift away from the mean —> keep an eye on direction.",
+      blurb: "A mild drift away from the mean → keep an eye on direction.",
     };
   return {
     label: "Near average",
