@@ -77,10 +77,6 @@ export async function GET(req: Request) {
     const rows = table.find("tr");
     if (!rows.length) throw new Error("No rows found.");
 
-    // Use "now" (with buffer) instead of "end of today UTC" to avoid timezone skips
-    const nowMs = Date.now();
-    const futureBufferMs = 36 * 60 * 60 * 1000; // 36h buffer
-
     // 1) Find header row
     let headerIndex = -1;
     let headerCells: string[] = [];
@@ -146,9 +142,6 @@ export async function GET(req: Request) {
 
         const { year, month } = monthsForRow[i];
         const date = new Date(Date.UTC(year, month - 1, day, 12, 0, 0)); // noon UTC stable
-
-        // Skip true future placeholders
-        if (date.getTime() > nowMs + futureBufferMs) continue;
 
         await prisma.exchangeRate.upsert({
           where: { pair_date: { pair: PAIR, date } },
