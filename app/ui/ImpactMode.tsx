@@ -503,7 +503,7 @@ export default function ImpactMode({ latestRate }: Props) {
             <div className="rounded-2xl border border-white/10 bg-white/5 p-5">
               <div className="text-xs font-semibold text-white/60">WHY THESE MOVE</div>
               <div className="mt-2 text-sm text-white/70">
-                Quick explanation of what typically drives each basket when the dollar moves.
+                When the dollar strengthens or weakens, it changes how much the Philippines pays for imported goods and services priced in USD. Items we rely on from abroad (like fuel, food, etc) usually feel the impact first, while locally sourced expenses move more slowly. This section shows where exchange rate changes are most likely to show up in everyday spending
               </div>
 
               <div className="mt-4 space-y-4">
