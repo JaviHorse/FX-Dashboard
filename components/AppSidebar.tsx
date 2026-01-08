@@ -17,6 +17,7 @@ export default function AppSidebar() {
   const NAV: NavItem[] = useMemo(
     () => [
       { href: "/peso-pilot", label: "Dashboard", icon: <GridIcon /> },
+      { href: "/impact", label: "Impact Simulator", icon: <SparkIcon /> }, // ✅ NEW PAGE BUTTON
       { href: "/alerts", label: "Alerts", icon: <BellIcon /> },
       { href: "/briefs", label: "FX Briefs", icon: <DocIcon /> },
     ],
@@ -86,10 +87,9 @@ export default function AppSidebar() {
     display: "grid",
     gap: 12,
     marginTop: 6,
-    justifyItems: collapsed ? "center" : "stretch", // ✅ center the whole button in collapsed mode
+    justifyItems: collapsed ? "center" : "stretch",
   };
 
-  // ✅ Expanded vs collapsed button styles (THIS fixes the “off” alignment)
   const itemBaseExpanded: React.CSSProperties = {
     display: "flex",
     alignItems: "center",
@@ -142,7 +142,6 @@ export default function AppSidebar() {
     flexShrink: 0,
   });
 
-  // ✅ In collapsed mode, the icon itself becomes the centered element (no extra padding/gap)
   const iconBoxCollapsed = (active: boolean): React.CSSProperties => ({
     width: 40,
     height: 40,
@@ -160,8 +159,101 @@ export default function AppSidebar() {
     letterSpacing: 0.2,
   };
 
-  const slimToggle: React.CSSProperties = {
+  // ✅ NEW: bottom cluster wrapper (pushes Home + toggle to the bottom)
+  const bottomCluster: React.CSSProperties = {
     marginTop: "auto",
+    display: "grid",
+    gap: 12,
+    justifyItems: collapsed ? "center" : "stretch",
+  };
+
+  // ✅ NEW: visual separator so Home feels isolated/interesting
+  const divider: React.CSSProperties = {
+    height: 1,
+    width: "100%",
+    background:
+      "linear-gradient(90deg, rgba(255,255,255,0), rgba(255,255,255,0.14), rgba(255,255,255,0))",
+    opacity: 0.9,
+  };
+
+  // ✅ NEW: Home button style (distinct from other nav items)
+  const homeCardExpanded: React.CSSProperties = {
+    display: "flex",
+    alignItems: "center",
+    gap: 12,
+    textDecoration: "none",
+    borderRadius: 18,
+    padding: "12px 14px",
+    color: "rgba(255,255,255,0.92)",
+    background:
+      "linear-gradient(135deg, rgba(99,102,241,0.28), rgba(93,220,255,0.14))",
+    border: "1px solid rgba(255,255,255,0.14)",
+    boxShadow:
+      "0 18px 42px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.12)",
+    transition: "transform 160ms ease, background 160ms ease",
+    userSelect: "none",
+  };
+
+  const homeCardCollapsed: React.CSSProperties = {
+    display: "grid",
+    placeItems: "center",
+    width: 56,
+    height: 56,
+    textDecoration: "none",
+    borderRadius: 18,
+    color: "rgba(255,255,255,0.92)",
+    background:
+      "linear-gradient(135deg, rgba(99,102,241,0.28), rgba(93,220,255,0.14))",
+    border: "1px solid rgba(255,255,255,0.14)",
+    boxShadow:
+      "0 18px 42px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.12)",
+    transition: "transform 160ms ease, background 160ms ease",
+    userSelect: "none",
+  };
+
+  const homeIconBoxExpanded: React.CSSProperties = {
+    width: 36,
+    height: 36,
+    borderRadius: 12,
+    display: "grid",
+    placeItems: "center",
+    background: "rgba(0,0,0,0.18)",
+    border: "1px solid rgba(255,255,255,0.16)",
+    color: "rgba(255,255,255,0.95)",
+    flexShrink: 0,
+  };
+
+  const homeIconBoxCollapsed: React.CSSProperties = {
+    width: 40,
+    height: 40,
+    borderRadius: 14,
+    display: "grid",
+    placeItems: "center",
+    background: "rgba(0,0,0,0.18)",
+    border: "1px solid rgba(255,255,255,0.16)",
+    color: "rgba(255,255,255,0.95)",
+  };
+
+  const homeLabelWrap: React.CSSProperties = {
+    display: "flex",
+    flexDirection: "column",
+    lineHeight: 1.05,
+  };
+
+  const homeTitle: React.CSSProperties = {
+    fontSize: 14,
+    fontWeight: 900,
+    letterSpacing: 0.2,
+  };
+
+  const homeSub: React.CSSProperties = {
+    marginTop: 2,
+    fontSize: 11,
+    fontWeight: 700,
+    color: "rgba(255,255,255,0.70)",
+  };
+
+  const slimToggle: React.CSSProperties = {
     width: collapsed ? 56 : 44,
     height: 44,
     borderRadius: 14,
@@ -171,7 +263,7 @@ export default function AppSidebar() {
     cursor: "pointer",
     display: "grid",
     placeItems: "center",
-    alignSelf: collapsed ? "center" : "flex-start", // ✅ clean alignment
+    alignSelf: collapsed ? "center" : "flex-start",
   };
 
   return (
@@ -209,14 +301,10 @@ export default function AppSidebar() {
               }}
               title={item.label}
               onMouseEnter={(e) => {
-                if (!active) {
-                  e.currentTarget.style.background = "rgba(255,255,255,0.06)";
-                }
+                if (!active) e.currentTarget.style.background = "rgba(255,255,255,0.06)";
               }}
               onMouseLeave={(e) => {
-                if (!active) {
-                  e.currentTarget.style.background = "transparent";
-                }
+                if (!active) e.currentTarget.style.background = "transparent";
               }}
             >
               {collapsed ? (
@@ -232,14 +320,51 @@ export default function AppSidebar() {
         })}
       </nav>
 
-      {/* Expand / Collapse Toggle */}
-      <button
-        style={slimToggle}
-        onClick={() => setCollapsed((v) => !v)}
-        aria-label="Toggle sidebar size"
-      >
-        {collapsed ? <ArrowRightIcon /> : <BarsIcon />}
-      </button>
+      {/* ✅ NEW: Bottom isolated Home + Toggle */}
+      <div style={bottomCluster}>
+        <div style={divider} />
+
+        <Link
+          href="/"
+          style={collapsed ? homeCardCollapsed : homeCardExpanded}
+          title="Home"
+          onMouseEnter={(e) => {
+            e.currentTarget.style.transform = "translateY(-1px)";
+            e.currentTarget.style.background =
+              "linear-gradient(135deg, rgba(99,102,241,0.34), rgba(93,220,255,0.18))";
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.transform = "translateY(0px)";
+            e.currentTarget.style.background =
+              "linear-gradient(135deg, rgba(99,102,241,0.28), rgba(93,220,255,0.14))";
+          }}
+        >
+          {collapsed ? (
+            <span style={homeIconBoxCollapsed}>
+              <HomeIcon />
+            </span>
+          ) : (
+            <>
+              <span style={homeIconBoxExpanded}>
+                <HomeIcon />
+              </span>
+              <span style={homeLabelWrap}>
+                <span style={homeTitle}>Home</span>
+                <span style={homeSub}>Back to landing</span>
+              </span>
+            </>
+          )}
+        </Link>
+
+        {/* Expand / Collapse Toggle */}
+        <button
+          style={slimToggle}
+          onClick={() => setCollapsed((v) => !v)}
+          aria-label="Toggle sidebar size"
+        >
+          {collapsed ? <ArrowRightIcon /> : <BarsIcon />}
+        </button>
+      </div>
     </aside>
   );
 }
@@ -281,6 +406,26 @@ function DocIcon() {
     <IconWrap>
       <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
         <path d="M7 3h7l5 5v13a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1Zm7 2v4h4" />
+      </svg>
+    </IconWrap>
+  );
+}
+
+function SparkIcon() {
+  return (
+    <IconWrap>
+      <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
+        <path d="M12 2l1.8 6.2L20 10l-6.2 1.8L12 18l-1.8-6.2L4 10l6.2-1.8L12 2Z" />
+      </svg>
+    </IconWrap>
+  );
+}
+
+function HomeIcon() {
+  return (
+    <IconWrap>
+      <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
+        <path d="M12 3 3 10v11a1 1 0 0 0 1 1h6v-7h4v7h6a1 1 0 0 0 1-1V10l-9-7Z" />
       </svg>
     </IconWrap>
   );

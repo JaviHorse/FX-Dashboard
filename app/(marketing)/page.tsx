@@ -18,7 +18,6 @@ export default async function HomePage() {
 
   if (!latest) throw new Error("No exchange rates found for USD/PHP from BSP.");
 
-  // Pull recent data for 24h change + 7D range
   const last8 = await prisma.exchangeRate.findMany({
     where: {
       pair: "USD/PHP",
@@ -26,7 +25,7 @@ export default async function HomePage() {
       date: { lte: today },
     },
     orderBy: { date: "desc" },
-    take: 8, // latest + ~7 prior points
+    take: 8,
     select: { date: true, rate: true },
   });
 
@@ -77,7 +76,6 @@ export default async function HomePage() {
           </div>
 
           <div className="flex items-center gap-3">
-            {/* theme button placeholder (keeps your “nice top-right button” look) */}
             <button
               type="button"
               className="grid h-10 w-10 place-items-center rounded-full bg-white/5 ring-1 ring-white/10 hover:bg-white/10"
@@ -113,23 +111,42 @@ export default async function HomePage() {
 
           <p className="mt-5 max-w-2xl text-sm leading-6 text-white/70">
             Peso Pilot reframes USD/PHP from a price series into a risk distribution.
-It identifies volatility regimes, quantifies downside risk and drawdowns, and produces a volatility-scaled 30-day outlook. Scenario and sensitivity analysis translate FX moves directly into exposure-level P/L impact.
+            It identifies volatility regimes, quantifies downside risk and drawdowns, and produces a volatility-scaled 30-day outlook. Scenario and sensitivity analysis translate FX moves directly into exposure-level P/L impact.
           </p>
 
           <div className="mt-8 flex flex-wrap gap-3">
+            {/* Unified Primary Button */}
             <Link
               href="/peso-pilot"
-              className="inline-flex items-center gap-2 rounded-xl bg-indigo-500 px-5 py-3 text-sm font-semibold hover:bg-indigo-400"
+              className="
+                group relative inline-flex items-center gap-2 overflow-hidden rounded-xl
+                px-8 py-4 text-sm font-bold text-white
+                bg-gradient-to-r from-indigo-500 via-violet-500 to-fuchsia-500
+                shadow-[0_0_30px_rgba(139,92,246,0.45)]
+                transition-all duration-300
+                hover:shadow-[0_0_50px_rgba(139,92,246,0.75)]
+                hover:scale-[1.03]
+              "
             >
-              Start Analysis <span aria-hidden>→</span>
+              {/* Shimmer effect layer */}
+              <span
+                className="
+                  pointer-events-none absolute inset-0
+                  bg-[linear-gradient(110deg,transparent,rgba(255,255,255,0.35),transparent)]
+                  opacity-0
+                  group-hover:opacity-100
+                  animate-[shimmer_1.8s_infinite]
+                "
+              />
+              
+              <span className="relative z-10">Start Analysis</span>
+              <span
+                className="relative z-10 transition-transform duration-300 group-hover:translate-x-1"
+                aria-hidden
+              >
+                →
+              </span>
             </Link>
-
-            <a
-              href="#kpis"
-              className="inline-flex items-center gap-2 rounded-xl bg-white/5 px-5 py-3 text-sm font-semibold ring-1 ring-white/10 hover:bg-white/10"
-            >
-              View Live KPIs
-            </a>
           </div>
         </div>
 

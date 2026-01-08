@@ -12,7 +12,10 @@ function getUtcEndOfToday(): Date {
       now.getUTCFullYear(),
       now.getUTCMonth(),
       now.getUTCDate(),
-      23, 59, 59, 999
+      23,
+      59,
+      59,
+      999
     )
   );
 }
@@ -41,38 +44,6 @@ export default async function PesoPilotPage() {
 
   return (
     <main className="min-h-screen bg-[#070B18] text-white">
-      <header className="sticky top-0 z-50 border-b border-white/10 bg-[#070B18]/70 backdrop-blur">
-        <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
-          <div className="flex items-center gap-3">
-            <div className="grid h-10 w-10 place-items-center rounded-xl bg-white/10 ring-1 ring-white/15">
-              <span className="text-sm font-semibold">₱</span>
-            </div>
-            <div className="leading-tight">
-              <div className="text-base font-semibold">Peso Pilot</div>
-              <div className="text-xs text-white/60">Dashboard • USD/PHP</div>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-3">
-            <Link
-              href="/"
-              className="inline-flex items-center gap-2 rounded-xl bg-white/5 px-4 py-2.5 text-sm font-semibold ring-1 ring-white/10 hover:bg-white/10"
-            >
-              ← Home
-            </Link>
-
-            <button
-              type="button"
-              className="grid h-10 w-10 place-items-center rounded-full bg-white/5 ring-1 ring-white/10 hover:bg-white/10"
-              aria-label="Theme"
-              title="Theme"
-            >
-              🌙
-            </button>
-          </div>
-        </div>
-      </header>
-
       <div className="mx-auto max-w-6xl px-6 py-8">
         <DashboardClient
           latest={{
