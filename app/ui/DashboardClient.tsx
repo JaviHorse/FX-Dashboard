@@ -163,9 +163,7 @@ export default function DashboardClient({ latest }: Props) {
   // ========================================
   const [scenarioPct, setScenarioPct] = useState<number>(1.0); // percent move in USD/PHP
   const [scenarioDirection, setScenarioDirection] = useState<"up" | "down">("up");
-  const [scenarioExposureType, setScenarioExposureType] = useState<"receivable" | "payable">(
-    "receivable"
-  );
+  const [scenarioExposureType, setScenarioExposureType] = useState<"receivable" | "payable">("receivable");
   const [scenarioExposureUsd, setScenarioExposureUsd] = useState<number>(100000); // USD exposure
 
   // ========================================
@@ -188,17 +186,22 @@ export default function DashboardClient({ latest }: Props) {
     });
   };
 
+  // ========================================
+  // PROFESSIONAL THEME (minimal glow, JP vibe)
+  // ========================================
   const theme = {
-    bg: isDark ? "#0f172a" : "#f8fafc",
-    text: isDark ? "#f1f5f9" : "#1e293b",
-    textMuted: isDark ? "#94a3b8" : "#64748b",
-    card: isDark ? "rgba(30, 41, 59, 0.7)" : "rgba(255, 255, 255, 0.8)",
-    border: isDark ? "rgba(255, 255, 255, 0.1)" : "rgba(226, 232, 240, 0.8)",
-    primary: "#6366f1",
-    accent: isDark ? "#818cf8" : "#4f46e5",
-    grid: isDark ? "rgba(255,255,255,0.05)" : "#f1f5f9",
-    success: "#22c55e",
-    danger: "#ef4444",
+    bg: isDark ? "#0b1220" : "#f6f8fb",
+    text: isDark ? "#e7eef9" : "#0f172a",
+    textMuted: isDark ? "#9fb0c7" : "#52607a",
+    card: isDark ? "rgba(17,24,39,0.74)" : "rgba(255,255,255,0.90)",
+    border: isDark ? "rgba(255,255,255,0.10)" : "rgba(15,23,42,0.10)",
+    // restrained accents
+    primary: "#1d4ed8", // deep blue
+    accent: "#0f766e", // teal
+    grid: isDark ? "rgba(255,255,255,0.06)" : "rgba(15,23,42,0.06)",
+    success: "#16a34a",
+    danger: "#dc2626",
+    warning: "#b45309",
   };
 
   const cardStyle: React.CSSProperties = {
@@ -207,8 +210,8 @@ export default function DashboardClient({ latest }: Props) {
     border: `1px solid ${theme.border}`,
     borderRadius: "24px",
     padding: "24px",
-    boxShadow: isDark ? "0 10px 30px -10px rgba(0,0,0,0.5)" : "0 4px 20px -5px rgba(0,0,0,0.05)",
-    transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
+    boxShadow: isDark ? "0 12px 34px -18px rgba(0,0,0,0.70)" : "0 10px 28px -18px rgba(15,23,42,0.18)",
+    transition: "all 0.28s cubic-bezier(0.4, 0, 0.2, 1)",
     color: theme.text,
   };
 
@@ -346,7 +349,6 @@ export default function DashboardClient({ latest }: Props) {
       setLoading(false);
     }
   }
-
   // ========================================
   // MINI SPARKLINE COMPONENT
   // ========================================
@@ -365,7 +367,7 @@ export default function DashboardClient({ latest }: Props) {
   };
 
   // ========================================
-  // KPI CARD WITH ANIMATION + SPARKLINE
+  // KPI CARD WITH ANIMATION + SUBTLE GLOW
   // ========================================
   const KpiCard = ({
     title,
@@ -382,11 +384,15 @@ export default function DashboardClient({ latest }: Props) {
   }) => {
     const numericValue = parseFloat(value.replace(/[^0-9.-]/g, ""));
     const animatedValue = useAnimatedNumber(Number.isFinite(numericValue) ? numericValue : 0);
+
     const displayValue = value.includes("₱")
       ? `₱${fmt3(animatedValue)}`
       : value.startsWith("+") || value.startsWith("-")
       ? (animatedValue >= 0 ? "+" : "") + fmt3(animatedValue)
       : fmt3(animatedValue);
+
+    // Subtle “professional” glow: blue for neutral, green/red only if trend
+    const glow = trend > 0 ? theme.danger : trend < 0 ? theme.success : theme.primary;
 
     return (
       <div
@@ -394,24 +400,45 @@ export default function DashboardClient({ latest }: Props) {
           ...cardStyle,
           position: "relative",
           overflow: "hidden",
+          border: `1px solid ${theme.border}`,
+          boxShadow: isDark
+            ? `0 16px 40px -26px rgba(0,0,0,0.85), 0 0 0 1px rgba(255,255,255,0.05)`
+            : `0 14px 34px -26px rgba(15,23,42,0.22), 0 0 0 1px rgba(15,23,42,0.06)`,
         }}
       >
+        {/* subtle top edge glow */}
+        <div
+          style={{
+            position: "absolute",
+            top: -60,
+            left: -40,
+            width: 180,
+            height: 180,
+            background: `radial-gradient(circle, ${glow}22, transparent 60%)`,
+            filter: "blur(2px)",
+            pointerEvents: "none",
+            opacity: 0.9,
+          }}
+        />
+
         <div
           style={{
             color: theme.textMuted,
             fontSize: 11,
-            fontWeight: 700,
+            fontWeight: 800,
             textTransform: "uppercase",
             letterSpacing: 1,
           }}
         >
           {title}
         </div>
-        <div style={{ fontSize: 28, fontWeight: 800, margin: "12px 0", color: theme.text }}>{displayValue}</div>
+
+        <div style={{ fontSize: 28, fontWeight: 900, margin: "12px 0", color: theme.text }}>{displayValue}</div>
+
         <div
           style={{
             fontSize: 13,
-            fontWeight: 600,
+            fontWeight: 700,
             color: trend > 0 ? theme.danger : trend < 0 ? theme.success : theme.textMuted,
           }}
         >
@@ -466,8 +493,8 @@ export default function DashboardClient({ latest }: Props) {
         label: "—",
         helper: "Not enough data to classify volatility regime for this window.",
         color: theme.textMuted,
-        bg: isDark ? "rgba(148,163,184,0.10)" : "rgba(100,116,139,0.10)",
-        border: isDark ? "rgba(148,163,184,0.20)" : "rgba(100,116,139,0.25)",
+        bg: isDark ? "rgba(159,176,199,0.10)" : "rgba(82,96,122,0.10)",
+        border: isDark ? "rgba(159,176,199,0.18)" : "rgba(15,23,42,0.12)",
         volText: "",
       };
     }
@@ -482,8 +509,8 @@ export default function DashboardClient({ latest }: Props) {
         label: "Low Vol",
         helper: `Volatility based on up to ${windowN} daily returns (annualized).`,
         color: isDark ? "#86efac" : "#166534",
-        bg: isDark ? "rgba(34,197,94,0.12)" : "rgba(220,252,231,0.9)",
-        border: isDark ? "rgba(34,197,94,0.25)" : "rgba(34,197,94,0.35)",
+        bg: isDark ? "rgba(22,163,74,0.12)" : "rgba(220,252,231,0.85)",
+        border: isDark ? "rgba(22,163,74,0.22)" : "rgba(22,163,74,0.26)",
         volText,
       };
     }
@@ -492,8 +519,8 @@ export default function DashboardClient({ latest }: Props) {
         label: "Normal Vol",
         helper: `Volatility based on up to ${windowN} daily returns (annualized).`,
         color: isDark ? "#fde68a" : "#92400e",
-        bg: isDark ? "rgba(251,191,36,0.12)" : "rgba(254,243,199,0.9)",
-        border: isDark ? "rgba(251,191,36,0.25)" : "rgba(251,191,36,0.35)",
+        bg: isDark ? "rgba(180,83,9,0.14)" : "rgba(255,247,237,0.90)",
+        border: isDark ? "rgba(180,83,9,0.26)" : "rgba(180,83,9,0.26)",
         volText,
       };
     }
@@ -501,14 +528,13 @@ export default function DashboardClient({ latest }: Props) {
       label: "High Vol",
       helper: `Volatility based on up to ${windowN} daily returns (annualized).`,
       color: isDark ? "#fca5a5" : "#991b1b",
-      bg: isDark ? "rgba(239,68,68,0.12)" : "rgba(254,242,242,0.9)",
-      border: isDark ? "rgba(239,68,68,0.25)" : "rgba(239,68,68,0.35)",
+      bg: isDark ? "rgba(220,38,38,0.14)" : "rgba(254,242,242,0.90)",
+      border: isDark ? "rgba(220,38,38,0.26)" : "rgba(220,38,38,0.26)",
       volText,
     };
   }, [activePreset, vol30, vol90, isDark, theme]);
-
   // ========================================
-  // Narrative Header + Dropdown Modules (NEW) — text EXACT as given
+  // Narrative Header + Dropdown Modules — text EXACT as given
   // ========================================
   const CORE_NARRATIVE_LOW = `Low Volatility Regime - Core Narrative (<8%)
 Interpretation
@@ -599,7 +625,6 @@ Operational Impact
 
   // ========================================
   // Narrative UI Helpers (SAFE: display-only)
-  // - Highlights some key header lines WITHOUT changing text
   // ========================================
   function splitFirstLine(text: string) {
     const idx = text.indexOf("\n");
@@ -641,13 +666,12 @@ Operational Impact
           position: "relative",
           borderRadius: 24,
           padding: 1,
+          // subtle premium edge: blue-teal, not loud
           background: isDark
-            ? "linear-gradient(135deg, rgba(99,102,241,0.28), rgba(255,255,255,0.06))"
-            : "linear-gradient(135deg, rgba(79,70,229,0.18), rgba(15,23,42,0.04))",
+            ? "linear-gradient(135deg, rgba(29,78,216,0.22), rgba(15,118,110,0.10))"
+            : "linear-gradient(135deg, rgba(29,78,216,0.14), rgba(15,118,110,0.08))",
           transition: "transform 220ms ease, box-shadow 220ms ease",
-          boxShadow: isDark
-            ? "0 16px 40px -22px rgba(0,0,0,0.65)"
-            : "0 16px 40px -26px rgba(0,0,0,0.18)",
+          boxShadow: isDark ? "0 16px 40px -22px rgba(0,0,0,0.70)" : "0 16px 40px -28px rgba(15,23,42,0.18)",
         }}
         onMouseEnter={(e) => {
           (e.currentTarget as HTMLDivElement).style.transform = "translateY(-2px)";
@@ -681,7 +705,7 @@ Operational Impact
                 {title}
               </div>
               {subtitle && (
-                <div style={{ marginTop: 6, fontSize: 13, fontWeight: 700, color: theme.textMuted }}>{subtitle}</div>
+                <div style={{ marginTop: 6, fontSize: 13, fontWeight: 750, color: theme.textMuted }}>{subtitle}</div>
               )}
             </div>
 
@@ -708,7 +732,7 @@ Operational Impact
                     borderRadius: "50%",
                     background: pillStyle.color,
                     boxShadow: `0 0 10px ${pillStyle.color}`,
-                    opacity: 0.9,
+                    opacity: 0.85,
                   }}
                 />
                 {pillLabel}
@@ -728,10 +752,7 @@ Operational Impact
                   const trimmed = line.trim();
                   const isHeader = highlightHeaders.has(trimmed);
 
-                  // Preserve blank lines
-                  if (line.length === 0) {
-                    return <div key={idx} style={{ height: 8 }} />;
-                  }
+                  if (line.length === 0) return <div key={idx} style={{ height: 8 }} />;
 
                   return (
                     <div
@@ -743,7 +764,7 @@ Operational Impact
                         opacity: isHeader ? 1 : 0.95,
                         lineHeight: 1.55,
                         letterSpacing: isHeader ? 0.2 : 0,
-                        textShadow: isHeader && isDark ? "0 0 18px rgba(129,140,248,0.22)" : undefined,
+                        textShadow: isHeader && isDark ? "0 0 16px rgba(15,118,110,0.18)" : undefined,
                         whiteSpace: "pre-wrap",
                       }}
                     >
@@ -779,8 +800,8 @@ Operational Impact
           borderRadius: 14,
           padding: 1,
           background: isDark
-            ? "linear-gradient(135deg, rgba(99,102,241,0.35), rgba(255,255,255,0.06))"
-            : "linear-gradient(135deg, rgba(79,70,229,0.20), rgba(15,23,42,0.04))",
+            ? "linear-gradient(135deg, rgba(29,78,216,0.20), rgba(15,118,110,0.10))"
+            : "linear-gradient(135deg, rgba(29,78,216,0.14), rgba(15,118,110,0.08))",
         }}
       >
         <select
@@ -797,7 +818,7 @@ Operational Impact
             background: theme.card,
             color: theme.text,
             fontSize: 13,
-            fontWeight: 800,
+            fontWeight: 850,
             outline: "none",
             cursor: "pointer",
           }}
@@ -822,7 +843,6 @@ Operational Impact
       </div>
     );
   }
-
   // ========================================
   // CONFIDENCE BANDS DATA (30D FAN CHART)
   // ========================================
@@ -839,7 +859,6 @@ Operational Impact
 
   const fanAnnualVol = useMemo(() => {
     // Match selected window: <=30 uses 30D vol; >30 uses 90D vol.
-    // If missing, show fallback message in UI.
     const windowN = regimeWindowReturns(activePreset);
     const v = windowN <= 30 ? vol30 : vol90;
     return v ?? null;
@@ -900,43 +919,41 @@ Operational Impact
     return (
       <div
         style={{
-          background: isDark ? "#1e293b" : "#ffffff",
-          color: isDark ? "#f1f5f9" : "#1e293b",
+          background: isDark ? "#101827" : "#ffffff",
+          color: isDark ? "#e7eef9" : "#0f172a",
           padding: "14px",
           borderRadius: "16px",
-          border: `1px solid ${isDark ? "rgba(255,255,255,0.1)" : "#e2e8f0"}`,
-          boxShadow: "0 10px 15px -3px rgba(0,0,0,0.1)",
+          border: `1px solid ${isDark ? "rgba(255,255,255,0.10)" : "rgba(15,23,42,0.10)"}`,
+          boxShadow: "0 14px 22px -18px rgba(15,23,42,0.45)",
           minWidth: 240,
         }}
       >
-        <div style={{ fontSize: 11, opacity: 0.65, marginBottom: 8, fontWeight: 800 }}>
+        <div style={{ fontSize: 11, opacity: 0.7, marginBottom: 8, fontWeight: 900 }}>
           {label} {isForecast ? "• Forecast" : "• History"}
         </div>
 
-        {Number.isFinite(rate) && (
-          <div style={{ fontSize: 13, fontWeight: 900, marginBottom: 8 }}>Spot: ₱{fmt3(rate)}</div>
-        )}
+        {Number.isFinite(rate) && <div style={{ fontSize: 13, fontWeight: 950, marginBottom: 8 }}>Spot: ₱{fmt3(rate)}</div>}
 
         {isForecast && (
           <>
             <div style={{ fontSize: 16, fontWeight: 950, marginBottom: 10 }}>Expected: ₱{fmt3(expected)}</div>
 
-            <div style={{ fontSize: 12, color: theme.textMuted, fontWeight: 800, display: "grid", gap: 6 }}>
+            <div style={{ fontSize: 12, color: theme.textMuted, fontWeight: 850, display: "grid", gap: 6 }}>
               <div>
                 50% band:{" "}
-                <span style={{ color: theme.text, fontWeight: 900 }}>
+                <span style={{ color: theme.text, fontWeight: 950 }}>
                   {lo50 != null && up50 != null ? `₱${fmt3(lo50)} – ₱${fmt3(up50)}` : "—"}
                 </span>
               </div>
               <div>
                 75% band:{" "}
-                <span style={{ color: theme.text, fontWeight: 900 }}>
+                <span style={{ color: theme.text, fontWeight: 950 }}>
                   {lo75 != null && up75 != null ? `₱${fmt3(lo75)} – ₱${fmt3(up75)}` : "—"}
                 </span>
               </div>
               <div>
                 95% band:{" "}
-                <span style={{ color: theme.text, fontWeight: 900 }}>
+                <span style={{ color: theme.text, fontWeight: 950 }}>
                   {lo95 != null && up95 != null ? `₱${fmt3(lo95)} – ₱${fmt3(up95)}` : "—"}
                 </span>
               </div>
@@ -951,7 +968,6 @@ Operational Impact
   //  Scenario Simulator Calculations (uses current/latest rate)
   // ========================================
   const scenario = useMemo(() => {
-    // Prefer latest rate; fallback to last chart point if needed
     const baseRate = Number.isFinite(Number(latest?.rate)) ? Number(latest.rate) : chartData[chartData.length - 1]?.rate ?? 0;
 
     const rate = Number(baseRate) || 0;
@@ -990,7 +1006,6 @@ Operational Impact
     const baseRate = scenario.rate || 0;
     const exposureUsd = Math.max(0, Number(scenarioExposureUsd) || 0);
 
-    // Range of shocks (in % points): -5% to +5% in 0.5% steps
     const minShock = -5;
     const maxShock = 5;
     const step = 0.5;
@@ -1027,7 +1042,6 @@ Operational Impact
     }
     if (!Number.isFinite(min) || !Number.isFinite(max)) return ["auto", "auto"] as const;
 
-    // Add padding so the line isn't hugging the edges
     const pad = Math.max(1, (max - min) * 0.12);
     return [min - pad, max + pad] as const;
   }, [sensitivityData]);
@@ -1047,25 +1061,24 @@ Operational Impact
     return (
       <div
         style={{
-          background: isDark ? "#1e293b" : "#ffffff",
-          color: isDark ? "#f1f5f9" : "#1e293b",
+          background: isDark ? "#101827" : "#ffffff",
+          color: isDark ? "#e7eef9" : "#0f172a",
           padding: "14px",
           borderRadius: "16px",
-          border: `1px solid ${isDark ? "rgba(255,255,255,0.1)" : "#e2e8f0"}`,
-          boxShadow: "0 10px 15px -3px rgba(0,0,0,0.1)",
+          border: `1px solid ${isDark ? "rgba(255,255,255,0.10)" : "rgba(15,23,42,0.10)"}`,
+          boxShadow: "0 14px 22px -18px rgba(15,23,42,0.45)",
           minWidth: 220,
         }}
       >
-        <div style={{ fontSize: 11, opacity: 0.65, marginBottom: 6, fontWeight: 800 }}>Shock: {shockText}</div>
-        <div style={{ fontSize: 12, opacity: 0.75, marginBottom: 8, fontWeight: 700 }}>Shocked rate: ₱{fmt3(row.shockedRate)}</div>
+        <div style={{ fontSize: 11, opacity: 0.7, marginBottom: 6, fontWeight: 900 }}>Shock: {shockText}</div>
+        <div style={{ fontSize: 12, opacity: 0.82, marginBottom: 8, fontWeight: 800 }}>Shocked rate: ₱{fmt3(row.shockedRate)}</div>
         <div style={{ fontSize: 18, fontWeight: 950, color: pnl >= 0 ? theme.success : theme.danger }}>
           {pnl >= 0 ? "+" : ""}
           {pnl.toLocaleString(undefined, { maximumFractionDigits: 0 })}
-          <span style={{ fontSize: 12, fontWeight: 800, opacity: 0.75, marginLeft: 6 }}>PHP</span>
+          <span style={{ fontSize: 12, fontWeight: 850, opacity: 0.8, marginLeft: 6 }}>PHP</span>
         </div>
-        <div style={{ marginTop: 8, fontSize: 12, color: theme.textMuted, fontWeight: 700 }}>
-          {scenarioExposureType === "receivable" ? "Receivable (Long USD)" : "Payable (Short USD)"}
-          {" • "}USD{" "}
+        <div style={{ marginTop: 8, fontSize: 12, color: theme.textMuted, fontWeight: 800 }}>
+          {scenarioExposureType === "receivable" ? "Receivable (Long USD)" : "Payable (Short USD)"} • USD{" "}
           {Math.max(0, Number(scenarioExposureUsd) || 0).toLocaleString(undefined, { maximumFractionDigits: 0 })}
         </div>
       </div>
@@ -1084,7 +1097,7 @@ Operational Impact
       }}
     >
       {/* ========================================
-          ANIMATED AURORA BACKGROUND
+          SUBTLE AURORA BACKGROUND (professional)
           ======================================== */}
       <div
         style={{
@@ -1093,7 +1106,7 @@ Operational Impact
           left: 0,
           right: 0,
           bottom: 0,
-          opacity: isDark ? 0.15 : 0.08,
+          opacity: isDark ? 0.18 : 0.10,
           pointerEvents: "none",
           zIndex: 0,
         }}
@@ -1106,15 +1119,15 @@ Operational Impact
           0%,
           100% {
             transform: translate(0%, 0%) rotate(0deg);
-            opacity: 0.7;
+            opacity: 0.75;
           }
           33% {
-            transform: translate(30%, 20%) rotate(120deg);
-            opacity: 0.9;
+            transform: translate(18%, 12%) rotate(120deg);
+            opacity: 0.95;
           }
           66% {
-            transform: translate(-20%, 30%) rotate(240deg);
-            opacity: 0.8;
+            transform: translate(-14%, 18%) rotate(240deg);
+            opacity: 0.85;
           }
         }
 
@@ -1123,21 +1136,21 @@ Operational Impact
           height: 200%;
           background: radial-gradient(
               ellipse at 20% 30%,
-              rgba(99, 102, 241, 0.4) 0%,
-              transparent 50%
+              rgba(29, 78, 216, 0.40) 0%,
+              transparent 55%
             ),
             radial-gradient(
               ellipse at 80% 70%,
-              rgba(129, 140, 248, 0.3) 0%,
-              transparent 50%
+              rgba(15, 118, 110, 0.26) 0%,
+              transparent 58%
             ),
             radial-gradient(
-              ellipse at 50% 50%,
-              rgba(139, 92, 246, 0.2) 0%,
-              transparent 50%
+              ellipse at 55% 40%,
+              rgba(2, 6, 23, 0.28) 0%,
+              transparent 60%
             );
-          animation: aurora 20s ease-in-out infinite;
-          filter: blur(40px);
+          animation: aurora 22s ease-in-out infinite;
+          filter: blur(56px);
         }
       `}</style>
 
@@ -1155,37 +1168,49 @@ Operational Impact
       >
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 20 }}>
           <div>
-            <h1 style={{ fontSize: 40, fontWeight: 900, margin: 0, letterSpacing: "-1.5px" }}>Peso Pilot</h1>
-            <p style={{ color: theme.textMuted, margin: "4px 0 0 0", fontSize: 16 }}>
+            <h1
+              style={{
+                fontSize: 40,
+                fontWeight: 950,
+                margin: 0,
+                letterSpacing: "-1.4px",
+                // subtle gradient text, not neon
+                background: `linear-gradient(135deg, ${theme.text}, ${theme.primary})`,
+                WebkitBackgroundClip: "text",
+                WebkitTextFillColor: "transparent",
+                backgroundClip: "text",
+              }}
+            >
+              Peso Pilot
+            </h1>
+            <p style={{ color: theme.textMuted, margin: "6px 0 0 0", fontSize: 16 }}>
               USD/PHP Market Analytics
             </p>
 
-            {/* ========================================
-                MARKET STATUS MESSAGE
-                ======================================== */}
+            {/* Market status */}
             <div
               style={{
-                marginTop: 8,
+                marginTop: 10,
                 display: "inline-flex",
                 alignItems: "center",
                 gap: 8,
                 background: marketStatus.isClosed
                   ? isDark
-                    ? "rgba(251, 191, 36, 0.1)"
-                    : "rgba(254, 243, 199, 0.9)"
+                    ? "rgba(180,83,9,0.12)"
+                    : "rgba(255,247,237,0.92)"
                   : isDark
-                  ? "rgba(34, 197, 94, 0.1)"
-                  : "rgba(220, 252, 231, 0.9)",
+                  ? "rgba(22,163,74,0.10)"
+                  : "rgba(220,252,231,0.90)",
                 padding: "6px 12px",
                 borderRadius: 12,
                 border: `1px solid ${
                   marketStatus.isClosed
                     ? isDark
-                      ? "rgba(251, 191, 36, 0.3)"
-                      : "rgba(251, 191, 36, 0.5)"
+                      ? "rgba(180,83,9,0.26)"
+                      : "rgba(180,83,9,0.26)"
                     : isDark
-                    ? "rgba(34, 197, 94, 0.3)"
-                    : "rgba(34, 197, 94, 0.5)"
+                    ? "rgba(22,163,74,0.22)"
+                    : "rgba(22,163,74,0.26)"
                 }`,
               }}
             >
@@ -1194,15 +1219,16 @@ Operational Impact
                   width: 6,
                   height: 6,
                   borderRadius: "50%",
-                  background: marketStatus.isClosed ? "#fbbf24" : "#22c55e",
-                  boxShadow: `0 0 8px ${marketStatus.isClosed ? "#fbbf24" : "#22c55e"}`,
+                  background: marketStatus.isClosed ? theme.warning : theme.success,
+                  boxShadow: `0 0 10px ${marketStatus.isClosed ? theme.warning : theme.success}`,
+                  opacity: 0.9,
                 }}
               />
               <span
                 style={{
                   fontSize: 12,
-                  fontWeight: 600,
-                  color: marketStatus.isClosed ? (isDark ? "#fbbf24" : "#92400e") : isDark ? "#22c55e" : "#166534",
+                  fontWeight: 800,
+                  color: marketStatus.isClosed ? (isDark ? "#fbbf24" : "#92400e") : isDark ? "#34d399" : "#166534",
                 }}
               >
                 {marketStatus.message}
@@ -1210,15 +1236,10 @@ Operational Impact
             </div>
           </div>
 
-          {/* ============================================================
-              ✅ ONLY CHANGE: Upper-right layout (swap filter bar + presets)
-              - Filter bar (dates + Analyze) is now ABOVE
-              - Theme toggle is beside the preset pills BELOW
-              - Everything else stays the same
-              ============================================================ */}
+          {/* Upper-right controls */}
           <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
-            <div style={{ display: "flex", flexDirection: "column", gap: 8, alignItems: "flex-end" }}>
-              {/* TOP ROW: Date filter bar */}
+            <div style={{ display: "flex", flexDirection: "column", gap: 10, alignItems: "flex-end" }}>
+              {/* Date filter bar */}
               <div
                 style={{
                   display: "flex",
@@ -1247,7 +1268,7 @@ Operational Impact
                   }}
                 />
 
-                <span style={{ opacity: 0.3, fontWeight: 800 }}>→</span>
+                <span style={{ opacity: 0.35, fontWeight: 900 }}>→</span>
 
                 <input
                   type="date"
@@ -1280,14 +1301,16 @@ Operational Impact
                     opacity: loading ? 0.7 : 1,
                     cursor: loading ? "not-allowed" : "pointer",
                     fontSize: 13,
-                    fontWeight: 800,
+                    fontWeight: 900,
+                    // subtle button glow
+                    boxShadow: `0 10px 18px -18px ${theme.primary}`,
                   }}
                 >
                   Analyze Range
                 </button>
               </div>
 
-              {/* BOTTOM ROW: Theme toggle beside preset pills */}
+              {/* Theme + presets */}
               <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
                 <button
                   onClick={toggleTheme}
@@ -1297,13 +1320,14 @@ Operational Impact
                     padding: "10px",
                     borderRadius: "50%",
                     cursor: "pointer",
-                    fontSize: 20,
+                    fontSize: 18,
                     width: 45,
                     height: 45,
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
                     color: theme.text,
+                    boxShadow: isDark ? "0 10px 18px -16px rgba(0,0,0,0.6)" : "0 10px 18px -18px rgba(15,23,42,0.20)",
                   }}
                   aria-label="Toggle theme"
                   title="Toggle theme"
@@ -1349,8 +1373,9 @@ Operational Impact
                         borderRadius: 10,
                         padding: "8px 16px",
                         cursor: loading ? "not-allowed" : "pointer",
-                        fontWeight: 700,
+                        fontWeight: 800,
                         transition: "0.2s",
+                        boxShadow: activePreset === p ? `0 10px 18px -18px ${theme.primary}` : "none",
                       }}
                     >
                       {p}
@@ -1366,19 +1391,17 @@ Operational Impact
           <div
             style={{
               ...cardStyle,
-              borderColor: "rgba(239, 68, 68, 0.35)",
-              background: isDark ? "rgba(127,29,29,0.22)" : "rgba(254,242,242,0.9)",
+              borderColor: "rgba(220,38,38,0.35)",
+              background: isDark ? "rgba(127,29,29,0.22)" : "rgba(254,242,242,0.92)",
               color: isDark ? "#fecaca" : "#991b1b",
             }}
           >
-            <div style={{ fontWeight: 900, marginBottom: 6 }}>Error</div>
+            <div style={{ fontWeight: 950, marginBottom: 6 }}>Error</div>
             <div style={{ fontSize: 13, lineHeight: 1.4 }}>{error}</div>
           </div>
         )}
 
-        {/* ========================================
-            KPI CARDS WITH SPARKLINES
-            ======================================== */}
+        {/* KPI CARDS */}
         <div style={{ display: "grid", gap: 20, gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))" }}>
           <KpiCard
             title="Live Rate"
@@ -1398,9 +1421,7 @@ Operational Impact
           <KpiCard title="Range High" value={`₱${fmt3(maxRange)}`} sub="Period Max" trend={0} sparklineData={sparklineData} />
         </div>
 
-        {/* ========================================
-            MAIN CHART WITH ENHANCEMENTS
-            ======================================== */}
+        {/* MAIN CHART */}
         <div style={{ ...cardStyle, height: 500, display: "flex", flexDirection: "column" }}>
           <div
             style={{
@@ -1413,10 +1434,19 @@ Operational Impact
             }}
           >
             <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
-              <div style={{ width: 10, height: 10, borderRadius: "50%", background: "#22c55e", boxShadow: "0 0 10px #22c55e" }} />
-              <span style={{ fontWeight: 800, fontSize: 18, letterSpacing: -0.5 }}>{modeLabel} Overview</span>
+              <div
+                style={{
+                  width: 10,
+                  height: 10,
+                  borderRadius: "50%",
+                  background: theme.accent,
+                  boxShadow: `0 0 12px rgba(15,118,110,0.45)`,
+                  opacity: 0.9,
+                }}
+              />
+              <span style={{ fontWeight: 900, fontSize: 18, letterSpacing: -0.5 }}>{modeLabel} Overview</span>
 
-              {/* Volatility Regime Badge (changes with preset) */}
+              {/* Volatility Regime Badge */}
               <span
                 title={volRegime.helper}
                 style={{
@@ -1429,7 +1459,7 @@ Operational Impact
                   background: volRegime.bg,
                   color: volRegime.color,
                   fontSize: 12,
-                  fontWeight: 800,
+                  fontWeight: 850,
                   letterSpacing: 0.2,
                 }}
               >
@@ -1444,15 +1474,13 @@ Operational Impact
                   }}
                 />
                 {volRegime.label}
-                {volRegime.volText && <span style={{ marginLeft: 6, opacity: 0.75, fontWeight: 800 }}>{volRegime.volText}</span>}
+                {volRegime.volText && <span style={{ marginLeft: 6, opacity: 0.75, fontWeight: 850 }}>{volRegime.volText}</span>}
               </span>
 
               {loading && <span style={{ fontSize: 12, color: theme.textMuted, marginLeft: 8 }}>Loading…</span>}
             </div>
 
-            {/* ========================================
-                MOVING AVERAGE TOGGLE
-                ======================================== */}
+            {/* MA Toggle */}
             <button
               onClick={() => setShowMA(!showMA)}
               disabled={chartData.length < 7}
@@ -1463,10 +1491,11 @@ Operational Impact
                 borderRadius: 10,
                 padding: "6px 12px",
                 fontSize: 12,
-                fontWeight: 700,
+                fontWeight: 800,
                 cursor: chartData.length < 7 ? "not-allowed" : "pointer",
                 opacity: chartData.length < 7 ? 0.5 : 1,
                 transition: "all 0.2s",
+                boxShadow: showMA ? `0 10px 18px -18px ${theme.primary}` : "none",
               }}
               title={chartData.length < 7 ? "Need 7+ data points" : "Toggle 7-day moving average"}
             >
@@ -1487,7 +1516,7 @@ Operational Impact
               >
                 <defs>
                   <linearGradient id="colorRate" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor={theme.primary} stopOpacity={0.4} />
+                    <stop offset="5%" stopColor={theme.primary} stopOpacity={0.35} />
                     <stop offset="95%" stopColor={theme.primary} stopOpacity={0} />
                   </linearGradient>
                 </defs>
@@ -1498,20 +1527,19 @@ Operational Impact
 
                 <YAxis domain={["auto", "auto"]} orientation="right" axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: theme.textMuted }} />
 
-                {/* ========================================
-                    CROSSHAIR HOVER LINE
-                    ======================================== */}
                 {hoveredIndex !== null && (
-                  <ReferenceLine x={chartDataWithMA[hoveredIndex]?.date} stroke={theme.textMuted} strokeDasharray="3 3" strokeOpacity={0.5} />
+                  <ReferenceLine
+                    x={chartDataWithMA[hoveredIndex]?.date}
+                    stroke={theme.textMuted}
+                    strokeDasharray="3 3"
+                    strokeOpacity={0.55}
+                  />
                 )}
 
                 <Tooltip content={<EnhancedTooltip isDark={isDark} theme={theme} chartData={chartData} />} />
 
                 <Area type="monotone" dataKey="rate" stroke={theme.primary} strokeWidth={4} fill="url(#colorRate)" animationDuration={1000} />
 
-                {/* ========================================
-                    MOVING AVERAGE LINE
-                    ======================================== */}
                 {showMA && (
                   <Line
                     type="monotone"
@@ -1532,9 +1560,7 @@ Operational Impact
           </div>
         </div>
 
-        {/* ========================================
-            Narrative Header + Dropdown (ABOVE Risk Metrics) — POLISHED
-            ======================================== */}
+        {/* Narrative section */}
         <div
           style={{
             display: "grid",
@@ -1543,7 +1569,6 @@ Operational Impact
             alignItems: "stretch",
           }}
         >
-          {/* Left: Core Narrative */}
           {narrativeLeftText ? (
             <NarrativeCard
               key={`core-${narrativeRegimeKey}`}
@@ -1560,24 +1585,21 @@ Operational Impact
               <div style={{ fontSize: 12, fontWeight: 900, letterSpacing: 0.8, textTransform: "uppercase", color: theme.textMuted }}>
                 Narrative Header
               </div>
-              <div style={{ marginTop: 10, fontSize: 13, opacity: 0.75 }}>
+              <div style={{ marginTop: 10, fontSize: 13, opacity: 0.8 }}>
                 Not enough data to generate the narrative for this window.
               </div>
             </div>
           )}
 
-          {/* Right: Dropdown + Module */}
           <div
             style={{
               position: "relative",
               borderRadius: 24,
               padding: 1,
               background: isDark
-                ? "linear-gradient(135deg, rgba(99,102,241,0.28), rgba(255,255,255,0.06))"
-                : "linear-gradient(135deg, rgba(79,70,229,0.18), rgba(15,23,42,0.04))",
-              boxShadow: isDark
-                ? "0 16px 40px -22px rgba(0,0,0,0.65)"
-                : "0 16px 40px -26px rgba(0,0,0,0.18)",
+                ? "linear-gradient(135deg, rgba(29,78,216,0.20), rgba(15,118,110,0.10))"
+                : "linear-gradient(135deg, rgba(29,78,216,0.14), rgba(15,118,110,0.08))",
+              boxShadow: isDark ? "0 16px 40px -22px rgba(0,0,0,0.70)" : "0 16px 40px -28px rgba(15,23,42,0.18)",
               transition: "transform 220ms ease, box-shadow 220ms ease",
             }}
             onMouseEnter={(e) => {
@@ -1604,7 +1626,7 @@ Operational Impact
                   <div style={{ fontSize: 12, fontWeight: 900, letterSpacing: 0.8, textTransform: "uppercase", color: theme.textMuted }}>
                     Dropdown
                   </div>
-                  <div style={{ marginTop: 6, fontSize: 13, fontWeight: 700, color: theme.textMuted }}>
+                  <div style={{ marginTop: 6, fontSize: 13, fontWeight: 750, color: theme.textMuted }}>
                     Select a lens to interpret the current regime
                   </div>
                 </div>
@@ -1630,21 +1652,18 @@ Operational Impact
                     isDark={isDark}
                   />
                 ) : (
-                  <div style={{ fontSize: 13, opacity: 0.75 }}>Not enough data to generate the module for this window.</div>
+                  <div style={{ fontSize: 13, opacity: 0.8 }}>Not enough data to generate the module for this window.</div>
                 )}
               </div>
             </div>
           </div>
         </div>
 
-        {/* ========================================
-            RISK METRICS PANEL (UNDER GRAPH)
-            (SWAPPED ABOVE FX OUTLOOK as requested earlier)
-            ======================================== */}
+        {/* Risk Metrics */}
         <div style={{ display: "grid", gap: 14 }}>
           <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
-            <div style={{ fontWeight: 900, letterSpacing: -0.5, fontSize: 16 }}>Risk Metrics</div>
-            <div style={{ fontSize: 12, color: theme.textMuted, fontWeight: 700 }}>
+            <div style={{ fontWeight: 950, letterSpacing: -0.5, fontSize: 16 }}>Risk Metrics</div>
+            <div style={{ fontSize: 12, color: theme.textMuted, fontWeight: 750 }}>
               Based on daily moves in current window • Points: {risk.points}
             </div>
           </div>
@@ -1673,11 +1692,7 @@ Operational Impact
             />
             <RiskCard
               title="Worst / Best Day"
-              value={
-                worstMove == null || bestMove == null
-                  ? "—"
-                  : `${fmtPct2(worstMove * 100)}% / ${fmtPct2(bestMove * 100)}%`
-              }
+              value={worstMove == null || bestMove == null ? "—" : `${fmtPct2(worstMove * 100)}% / ${fmtPct2(bestMove * 100)}%`}
               sub="Largest 1-day % move in window"
               cardStyle={cardStyle}
               theme={theme}
@@ -1685,39 +1700,37 @@ Operational Impact
           </div>
         </div>
 
-        {/* ========================================
-            FX OUTLOOK (CONFIDENCE BANDS / FAN CHART)
-            ======================================== */}
+        {/* FX Outlook */}
         <div style={{ display: "grid", gap: 14 }}>
           <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
-            <div style={{ fontWeight: 900, letterSpacing: -0.5, fontSize: 16 }}>FX Outlook (30D Confidence Bands)</div>
-            <div style={{ fontSize: 12, color: theme.textMuted, fontWeight: 700 }}>Volatility-driven envelope • 50% / 75% / 95%</div>
+            <div style={{ fontWeight: 950, letterSpacing: -0.5, fontSize: 16 }}>FX Outlook (30D Confidence Bands)</div>
+            <div style={{ fontSize: 12, color: theme.textMuted, fontWeight: 750 }}>Volatility-driven envelope • 50% / 75% / 95%</div>
           </div>
 
           <div style={{ ...cardStyle, padding: 20 }}>
-            <div style={{ fontSize: 13, color: theme.textMuted, fontWeight: 700, marginBottom: 10 }}>
+            <div style={{ fontSize: 13, color: theme.textMuted, fontWeight: 750, marginBottom: 10 }}>
               Shaded bands show a probabilistic range of USD/PHP outcomes over the next 30 days based on the current volatility
               regime (annualized) from your selected window.
             </div>
 
             {!fanAnnualVol ? (
-              <div style={{ fontSize: 13, color: theme.textMuted, fontWeight: 800 }}>
+              <div style={{ fontSize: 13, color: theme.textMuted, fontWeight: 850 }}>
                 Not enough data to compute confidence bands for this window.
               </div>
             ) : (
               <>
                 <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginBottom: 10 }}>
-                  <span style={{ fontSize: 12, fontWeight: 800, color: theme.textMuted }}>
-                    Spot: <span style={{ color: theme.text, fontWeight: 900 }}>₱{fmt3(baseSpot)}</span>
+                  <span style={{ fontSize: 12, fontWeight: 850, color: theme.textMuted }}>
+                    Spot: <span style={{ color: theme.text, fontWeight: 950 }}>₱{fmt3(baseSpot)}</span>
                   </span>
-                  <span style={{ fontSize: 12, fontWeight: 800, color: theme.textMuted }}>
+                  <span style={{ fontSize: 12, fontWeight: 850, color: theme.textMuted }}>
                     Vol used:{" "}
-                    <span style={{ color: theme.text, fontWeight: 900 }}>{fmtPct2((fanAnnualVol ?? 0) * 100)}%</span>{" "}
+                    <span style={{ color: theme.text, fontWeight: 950 }}>{fmtPct2((fanAnnualVol ?? 0) * 100)}%</span>{" "}
                     <span style={{ opacity: 0.75 }}>(annualized)</span>
                   </span>
-                  <span style={{ fontSize: 12, fontWeight: 800, color: theme.textMuted }}>
+                  <span style={{ fontSize: 12, fontWeight: 850, color: theme.textMuted }}>
                     Start:{" "}
-                    <span style={{ color: theme.text, fontWeight: 900 }}>{chartData.length ? chartData[chartData.length - 1].date : latestISO}</span>
+                    <span style={{ color: theme.text, fontWeight: 950 }}>{chartData.length ? chartData[chartData.length - 1].date : latestISO}</span>
                   </span>
                 </div>
 
@@ -1732,25 +1745,19 @@ Operational Impact
 
                       <Tooltip content={<FanTooltip />} />
 
-                      {/* Spot reference */}
                       <ReferenceLine y={baseSpot} stroke={theme.textMuted} strokeDasharray="4 4" strokeOpacity={0.55} />
 
-                      {/* 95% band (widest) */}
                       <Area dataKey="base95" stackId="fan95" stroke="none" fillOpacity={0} />
-                      <Area dataKey="band95" stackId="fan95" stroke="none" fill={theme.primary} fillOpacity={0.1} isAnimationActive animationDuration={700} />
+                      <Area dataKey="band95" stackId="fan95" stroke="none" fill={theme.primary} fillOpacity={0.10} isAnimationActive animationDuration={700} />
 
-                      {/* 75% band */}
                       <Area dataKey="base75" stackId="fan75" stroke="none" fillOpacity={0} />
                       <Area dataKey="band75" stackId="fan75" stroke="none" fill={theme.primary} fillOpacity={0.16} isAnimationActive animationDuration={700} />
 
-                      {/* 50% band (tightest) */}
                       <Area dataKey="base50" stackId="fan50" stroke="none" fillOpacity={0} />
                       <Area dataKey="band50" stackId="fan50" stroke="none" fill={theme.primary} fillOpacity={0.22} isAnimationActive animationDuration={700} />
 
-                      {/* Expected path */}
                       <Line type="monotone" dataKey="expected" stroke={theme.accent} strokeWidth={3} dot={false} isAnimationActive animationDuration={700} />
 
-                      {/* Historical continuation */}
                       <Line
                         type="monotone"
                         dataKey="rate"
@@ -1765,7 +1772,7 @@ Operational Impact
                   </ResponsiveContainer>
                 </div>
 
-                <div style={{ marginTop: 10, fontSize: 12, color: theme.textMuted, fontWeight: 700, lineHeight: 1.35 }}>
+                <div style={{ marginTop: 10, fontSize: 12, color: theme.textMuted, fontWeight: 750, lineHeight: 1.35 }}>
                   Interpretation: The fan widens over time because uncertainty scales with √t. This is a volatility-driven envelope (not a fundamental macro forecast).
                 </div>
               </>
@@ -1773,24 +1780,33 @@ Operational Impact
           </div>
         </div>
 
-        {/* ========================================
-            SCENARIO SIMULATOR
-            ======================================== */}
+        {/* Scenario Simulator */}
         <div style={{ display: "grid", gap: 14 }}>
           <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
-            <div style={{ fontWeight: 900, letterSpacing: -0.5, fontSize: 16 }}>Scenario Simulator</div>
-            <div style={{ fontSize: 12, color: theme.textMuted, fontWeight: 700 }}>
+            <div style={{ fontWeight: 950, letterSpacing: -0.5, fontSize: 16 }}>Scenario Simulator</div>
+            <div style={{ fontSize: 12, color: theme.textMuted, fontWeight: 750 }}>
               Sensitivity analysis using current rate • {Number.isFinite(scenario.rate) ? `₱${fmt3(scenario.rate)}` : "—"}
             </div>
           </div>
 
           <div style={{ ...cardStyle, padding: 20, display: "grid", gap: 16 }}>
-            <div style={{ color: theme.textMuted, fontSize: 13, fontWeight: 700 }}>Simulate USD/PHP moves and estimate the PHP impact on a USD exposure.</div>
+            <div style={{ color: theme.textMuted, fontSize: 13, fontWeight: 750 }}>
+              Simulate USD/PHP moves and estimate the PHP impact on a USD exposure.
+            </div>
 
             <div style={{ display: "grid", gap: 16, gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))" }}>
               {/* Exposure */}
-              <div style={{ border: `1px solid ${theme.border}`, borderRadius: 18, padding: 16, background: isDark ? "rgba(15,23,42,0.35)" : "rgba(248,250,252,0.6)" }}>
-                <div style={{ fontSize: 12, fontWeight: 900, letterSpacing: 0.6, textTransform: "uppercase", color: theme.textMuted }}>Exposure</div>
+              <div
+                style={{
+                  border: `1px solid ${theme.border}`,
+                  borderRadius: 18,
+                  padding: 16,
+                  background: isDark ? "rgba(15,23,42,0.35)" : "rgba(248,250,252,0.6)",
+                }}
+              >
+                <div style={{ fontSize: 12, fontWeight: 900, letterSpacing: 0.6, textTransform: "uppercase", color: theme.textMuted }}>
+                  Exposure
+                </div>
 
                 <div style={{ marginTop: 10, display: "flex", gap: 8, flexWrap: "wrap" }}>
                   <button
@@ -1801,6 +1817,7 @@ Operational Impact
                       color: scenarioExposureType === "receivable" ? "white" : theme.textMuted,
                       border: `1px solid ${scenarioExposureType === "receivable" ? theme.primary : theme.border}`,
                       padding: "8px 12px",
+                      boxShadow: scenarioExposureType === "receivable" ? `0 10px 18px -18px ${theme.primary}` : "none",
                     }}
                   >
                     USD Receivable (Long USD)
@@ -1813,6 +1830,7 @@ Operational Impact
                       color: scenarioExposureType === "payable" ? "white" : theme.textMuted,
                       border: `1px solid ${scenarioExposureType === "payable" ? theme.primary : theme.border}`,
                       padding: "8px 12px",
+                      boxShadow: scenarioExposureType === "payable" ? `0 10px 18px -18px ${theme.primary}` : "none",
                     }}
                   >
                     USD Payable (Short USD)
@@ -1820,7 +1838,7 @@ Operational Impact
                 </div>
 
                 <div style={{ marginTop: 12 }}>
-                  <div style={{ fontSize: 12, fontWeight: 800, color: theme.textMuted, marginBottom: 6 }}>Exposure Amount (USD)</div>
+                  <div style={{ fontSize: 12, fontWeight: 850, color: theme.textMuted, marginBottom: 6 }}>Exposure Amount (USD)</div>
                   <input
                     type="number"
                     min={0}
@@ -1833,8 +1851,17 @@ Operational Impact
               </div>
 
               {/* Market Move */}
-              <div style={{ border: `1px solid ${theme.border}`, borderRadius: 18, padding: 16, background: isDark ? "rgba(15,23,42,0.35)" : "rgba(248,250,252,0.6)" }}>
-                <div style={{ fontSize: 12, fontWeight: 900, letterSpacing: 0.6, textTransform: "uppercase", color: theme.textMuted }}>Market Move</div>
+              <div
+                style={{
+                  border: `1px solid ${theme.border}`,
+                  borderRadius: 18,
+                  padding: 16,
+                  background: isDark ? "rgba(15,23,42,0.35)" : "rgba(248,250,252,0.6)",
+                }}
+              >
+                <div style={{ fontSize: 12, fontWeight: 900, letterSpacing: 0.6, textTransform: "uppercase", color: theme.textMuted }}>
+                  Market Move
+                </div>
 
                 <div style={{ marginTop: 10, display: "flex", gap: 8, flexWrap: "wrap" }}>
                   <button
@@ -1845,6 +1872,7 @@ Operational Impact
                       color: scenarioDirection === "up" ? "white" : theme.textMuted,
                       border: `1px solid ${scenarioDirection === "up" ? theme.primary : theme.border}`,
                       padding: "8px 12px",
+                      boxShadow: scenarioDirection === "up" ? `0 10px 18px -18px ${theme.primary}` : "none",
                     }}
                   >
                     USD Strengthens (+)
@@ -1857,6 +1885,7 @@ Operational Impact
                       color: scenarioDirection === "down" ? "white" : theme.textMuted,
                       border: `1px solid ${scenarioDirection === "down" ? theme.primary : theme.border}`,
                       padding: "8px 12px",
+                      boxShadow: scenarioDirection === "down" ? `0 10px 18px -18px ${theme.primary}` : "none",
                     }}
                   >
                     USD Weakens (−)
@@ -1864,7 +1893,7 @@ Operational Impact
                 </div>
 
                 <div style={{ marginTop: 12 }}>
-                  <div style={{ fontSize: 12, fontWeight: 800, color: theme.textMuted, marginBottom: 6 }}>Shock Size (%)</div>
+                  <div style={{ fontSize: 12, fontWeight: 850, color: theme.textMuted, marginBottom: 6 }}>Shock Size (%)</div>
 
                   <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
                     <input
@@ -1883,58 +1912,74 @@ Operational Impact
                       step={0.1}
                       value={scenarioPct}
                       onChange={(e) => setScenarioPct(Number(e.target.value))}
-                      style={{ ...inputStyle, width: 90, background: theme.card, color: theme.text, borderColor: theme.border, padding: "8px 10px" }}
+                      style={{
+                        ...inputStyle,
+                        width: 90,
+                        background: theme.card,
+                        color: theme.text,
+                        borderColor: theme.border,
+                        padding: "8px 10px",
+                      }}
                     />
                   </div>
 
-                  <div style={{ marginTop: 6, fontSize: 12, color: theme.textMuted, fontWeight: 700 }}>
+                  <div style={{ marginTop: 6, fontSize: 12, color: theme.textMuted, fontWeight: 750 }}>
                     Base Rate: ₱{fmt3(scenario.rate)} → Shocked: ₱{fmt3(scenario.shockedRate)}
                   </div>
                 </div>
               </div>
 
               {/* Results */}
-              <div style={{ border: `1px solid ${theme.border}`, borderRadius: 18, padding: 16, background: isDark ? "rgba(15,23,42,0.35)" : "rgba(248,250,252,0.6)" }}>
-                <div style={{ fontSize: 12, fontWeight: 900, letterSpacing: 0.6, textTransform: "uppercase", color: theme.textMuted }}>Results</div>
+              <div
+                style={{
+                  border: `1px solid ${theme.border}`,
+                  borderRadius: 18,
+                  padding: 16,
+                  background: isDark ? "rgba(15,23,42,0.35)" : "rgba(248,250,252,0.6)",
+                }}
+              >
+                <div style={{ fontSize: 12, fontWeight: 900, letterSpacing: 0.6, textTransform: "uppercase", color: theme.textMuted }}>
+                  Results
+                </div>
 
                 <div style={{ marginTop: 12, display: "grid", gap: 10 }}>
                   <div style={{ display: "flex", justifyContent: "space-between", gap: 10 }}>
-                    <span style={{ fontSize: 12, color: theme.textMuted, fontWeight: 800 }}>Baseline (PHP)</span>
-                    <span style={{ fontSize: 14, fontWeight: 900 }}>{scenario.baselinePhp.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
+                    <span style={{ fontSize: 12, color: theme.textMuted, fontWeight: 850 }}>Baseline (PHP)</span>
+                    <span style={{ fontSize: 14, fontWeight: 950 }}>{scenario.baselinePhp.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
                   </div>
 
                   <div style={{ display: "flex", justifyContent: "space-between", gap: 10 }}>
-                    <span style={{ fontSize: 12, color: theme.textMuted, fontWeight: 800 }}>Shocked (PHP)</span>
-                    <span style={{ fontSize: 14, fontWeight: 900 }}>{scenario.shockedPhp.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
+                    <span style={{ fontSize: 12, color: theme.textMuted, fontWeight: 850 }}>Shocked (PHP)</span>
+                    <span style={{ fontSize: 14, fontWeight: 950 }}>{scenario.shockedPhp.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
                   </div>
 
                   <div style={{ height: 1, background: theme.border, opacity: 0.7, margin: "6px 0" }} />
 
                   <div style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "baseline" }}>
-                    <span style={{ fontSize: 12, color: theme.textMuted, fontWeight: 900 }}>P/L Impact (PHP)</span>
+                    <span style={{ fontSize: 12, color: theme.textMuted, fontWeight: 950 }}>P/L Impact (PHP)</span>
                     <span style={{ fontSize: 16, fontWeight: 950, color: scenario.deltaPhp >= 0 ? theme.success : theme.danger }}>
                       {scenario.deltaPhp >= 0 ? "+" : ""}
                       {scenario.deltaPhp.toLocaleString(undefined, { maximumFractionDigits: 0 })}
                     </span>
                   </div>
 
-                  <div style={{ marginTop: 8, fontSize: 12, color: theme.textMuted, fontWeight: 700, lineHeight: 1.35 }}>
+                  <div style={{ marginTop: 8, fontSize: 12, color: theme.textMuted, fontWeight: 750, lineHeight: 1.35 }}>
                     Interpretation: A{" "}
-                    <span style={{ color: theme.text, fontWeight: 900 }}>
+                    <span style={{ color: theme.text, fontWeight: 950 }}>
                       {scenarioDirection === "up" ? "+" : "−"}
                       {scenarioPct.toFixed(1)}%
                     </span>{" "}
                     move in USD/PHP implies an estimated{" "}
-                    <span style={{ color: theme.text, fontWeight: 900 }}>{scenario.deltaPhp >= 0 ? "gain" : "loss"}</span>{" "}
+                    <span style={{ color: theme.text, fontWeight: 950 }}>{scenario.deltaPhp >= 0 ? "gain" : "loss"}</span>{" "}
                     of{" "}
-                    <span style={{ color: theme.text, fontWeight: 900 }}>
+                    <span style={{ color: theme.text, fontWeight: 950 }}>
                       PHP{" "}
                       {Math.abs(scenario.deltaPhp).toLocaleString(undefined, {
                         maximumFractionDigits: 0,
                       })}
                     </span>{" "}
                     on a{" "}
-                    <span style={{ color: theme.text, fontWeight: 900 }}>
+                    <span style={{ color: theme.text, fontWeight: 950 }}>
                       USD {scenario.exposureUsd.toLocaleString(undefined, { maximumFractionDigits: 0 })}
                     </span>{" "}
                     {scenarioExposureType === "receivable" ? "receivable" : "payable"} exposure.
@@ -1945,17 +1990,15 @@ Operational Impact
           </div>
         </div>
 
-        {/* ========================================
-             FX SENSITIVITY CURVE (P/L vs Shock %)
-            ======================================== */}
+        {/* FX Sensitivity Curve */}
         <div style={{ display: "grid", gap: 14 }}>
           <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
-            <div style={{ fontWeight: 900, letterSpacing: -0.5, fontSize: 16 }}>FX Sensitivity Curve</div>
-            <div style={{ fontSize: 12, color: theme.textMuted, fontWeight: 700 }}>P/L impact (PHP) vs USD/PHP shock • Range: −5% to +5%</div>
+            <div style={{ fontWeight: 950, letterSpacing: -0.5, fontSize: 16 }}>FX Sensitivity Curve</div>
+            <div style={{ fontSize: 12, color: theme.textMuted, fontWeight: 750 }}>P/L impact (PHP) vs USD/PHP shock • Range: −5% to +5%</div>
           </div>
 
           <div style={{ ...cardStyle, padding: 20 }}>
-            <div style={{ fontSize: 13, color: theme.textMuted, fontWeight: 700, marginBottom: 10 }}>
+            <div style={{ fontSize: 13, color: theme.textMuted, fontWeight: 750, marginBottom: 10 }}>
               This curve visualizes how your estimated PHP P/L changes as USD/PHP moves. The vertical marker shows your current selected shock.
             </div>
 
@@ -1976,7 +2019,7 @@ Operational Impact
                       offset: -5,
                       fill: theme.textMuted,
                       fontSize: 11,
-                      fontWeight: 700,
+                      fontWeight: 750,
                     }}
                   />
 
@@ -1992,21 +2035,19 @@ Operational Impact
                       position: "insideLeft",
                       fill: theme.textMuted,
                       fontSize: 11,
-                      fontWeight: 700,
+                      fontWeight: 750,
                     }}
                   />
 
                   <Tooltip content={<SensitivityTooltip />} />
 
-                  {/* Break-even line */}
                   <ReferenceLine y={0} stroke={theme.textMuted} strokeDasharray="4 4" strokeOpacity={0.55} />
 
-                  {/* Current selected shock marker */}
                   <ReferenceLine
                     x={Number(selectedShockSignedPct.toFixed(1))}
                     stroke={theme.primary}
                     strokeDasharray="6 6"
-                    strokeOpacity={0.9}
+                    strokeOpacity={0.85}
                   />
 
                   <Line type="monotone" dataKey="pnlPhp" stroke={theme.primary} strokeWidth={3} dot={false} isAnimationActive={true} animationDuration={650} />
@@ -2014,21 +2055,21 @@ Operational Impact
               </ResponsiveContainer>
             </div>
 
-            <div style={{ marginTop: 10, fontSize: 12, color: theme.textMuted, fontWeight: 700 }}>
+            <div style={{ marginTop: 10, fontSize: 12, color: theme.textMuted, fontWeight: 750 }}>
               Current selection:{" "}
-              <span style={{ color: theme.text, fontWeight: 900 }}>
+              <span style={{ color: theme.text, fontWeight: 950 }}>
                 {selectedShockSignedPct >= 0 ? "+" : ""}
                 {selectedShockSignedPct.toFixed(1)}%
               </span>{" "}
               • Exposure:{" "}
-              <span style={{ color: theme.text, fontWeight: 900 }}>
+              <span style={{ color: theme.text, fontWeight: 950 }}>
                 USD{" "}
                 {Math.max(0, Number(scenarioExposureUsd) || 0).toLocaleString(undefined, {
                   maximumFractionDigits: 0,
                 })}
               </span>{" "}
               • Type:{" "}
-              <span style={{ color: theme.text, fontWeight: 900 }}>
+              <span style={{ color: theme.text, fontWeight: 950 }}>
                 {scenarioExposureType === "receivable" ? "Receivable (Long USD)" : "Payable (Short USD)"}
               </span>
             </div>
@@ -2056,10 +2097,16 @@ function RiskCard({
   theme: any;
 }) {
   return (
-    <div style={{ ...cardStyle }}>
-      <div style={{ color: theme.textMuted, fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: 1 }}>{title}</div>
-      <div style={{ fontSize: 26, fontWeight: 900, margin: "12px 0", color: theme.text }}>{value}</div>
-      <div style={{ fontSize: 13, fontWeight: 600, color: theme.textMuted }}>{sub}</div>
+    <div
+      style={{
+        ...cardStyle,
+        // subtle accent left border
+        borderLeft: `3px solid ${theme.primary}33`,
+      }}
+    >
+      <div style={{ color: theme.textMuted, fontSize: 11, fontWeight: 800, textTransform: "uppercase", letterSpacing: 1 }}>{title}</div>
+      <div style={{ fontSize: 26, fontWeight: 950, margin: "12px 0", color: theme.text }}>{value}</div>
+      <div style={{ fontSize: 13, fontWeight: 650, color: theme.textMuted }}>{sub}</div>
     </div>
   );
 }
@@ -2080,22 +2127,22 @@ function EnhancedTooltip({ active, payload, label, isDark, theme, chartData }: a
   return (
     <div
       style={{
-        background: isDark ? "#1e293b" : "#ffffff",
-        color: isDark ? "#f1f5f9" : "#1e293b",
+        background: isDark ? "#101827" : "#ffffff",
+        color: isDark ? "#e7eef9" : "#0f172a",
         padding: "16px",
         borderRadius: "16px",
-        border: `1px solid ${isDark ? "rgba(255,255,255,0.1)" : "#e2e8f0"}`,
-        boxShadow: "0 10px 15px -3px rgba(0,0,0,0.1)",
+        border: `1px solid ${isDark ? "rgba(255,255,255,0.10)" : "rgba(15,23,42,0.10)"}`,
+        boxShadow: "0 14px 22px -18px rgba(15,23,42,0.45)",
       }}
     >
-      <div style={{ fontSize: 11, opacity: 0.6, marginBottom: 4, fontWeight: 600 }}>{label}</div>
-      <div style={{ fontSize: 22, fontWeight: 900, marginBottom: 8 }}>₱{fmt3(currentRate)}</div>
+      <div style={{ fontSize: 11, opacity: 0.7, marginBottom: 4, fontWeight: 800 }}>{label}</div>
+      <div style={{ fontSize: 22, fontWeight: 950, marginBottom: 8 }}>₱{fmt3(currentRate)}</div>
 
       {change !== null && (
         <div
           style={{
             fontSize: 12,
-            fontWeight: 700,
+            fontWeight: 850,
             color: change > 0 ? theme.danger : change < 0 ? theme.success : theme.textMuted,
             display: "flex",
             alignItems: "center",
@@ -2107,7 +2154,7 @@ function EnhancedTooltip({ active, payload, label, isDark, theme, chartData }: a
             {change >= 0 ? "+" : ""}
             {fmt3(change)}
           </span>
-          <span style={{ opacity: 0.7 }}>
+          <span style={{ opacity: 0.75 }}>
             ({changePct && changePct >= 0 ? "+" : ""}
             {fmtPct2(changePct ?? 0)}%)
           </span>
@@ -2122,7 +2169,7 @@ const inputStyle: React.CSSProperties = {
   borderRadius: "12px",
   padding: "10px 16px",
   fontSize: "14px",
-  fontWeight: 600,
+  fontWeight: 700,
   outline: "none",
 };
 
@@ -2131,7 +2178,7 @@ const btnStyle: React.CSSProperties = {
   border: "none",
   padding: "10px 24px",
   borderRadius: "12px",
-  fontWeight: 700,
+  fontWeight: 800,
   cursor: "pointer",
 };
 
