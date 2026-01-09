@@ -176,7 +176,7 @@ export default function ImpactMode({ latestRate }: Props) {
   const bucketOrder = useMemo(() => ["groceries", "travel", "rent", "shopping"] as BucketKey[], []);
 
   const heroMiniCards = (
-    <div className="grid gap-3 sm:grid-cols-2">
+    <div className="grid gap-3 grid-cols-1 sm:grid-cols-2">
       {bucketOrder.map((k) => {
         const b = buckets[k];
         const r = results[k];
@@ -204,7 +204,7 @@ export default function ImpactMode({ latestRate }: Props) {
                 </div>
               </div>
 
-              <span className={cn("rounded-full px-2.5 py-1 text-xs font-semibold", chip)}>
+              <span className={cn("rounded-full px-2.5 py-1 text-xs font-semibold whitespace-nowrap", chip)}>
                 {delta >= 0 ? "+" : "−"}
                 {fmtPeso0(Math.abs(delta)).replace("-", "")}
               </span>
@@ -234,10 +234,10 @@ export default function ImpactMode({ latestRate }: Props) {
   );
 
   return (
-    <section className="mt-10">
+    <section className="mt-6 sm:mt-10">
       <div
         className={cn(
-          "relative overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-b from-white/6 via-white/4 to-transparent p-7 md:p-8",
+          "relative overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-b from-white/6 via-white/4 to-transparent p-4 sm:p-7 md:p-8",
           directionGlow
         )}
       >
@@ -247,16 +247,16 @@ export default function ImpactMode({ latestRate }: Props) {
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.06),transparent_45%)]" />
 
         <div className="relative">
-          <div className="flex flex-wrap items-center justify-between gap-4">
+          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
             <div>
-              <div className="mb-2 inline-flex items-center gap-2">
+              <div className="mb-2 inline-flex flex-wrap items-center gap-2">
                 <span className="rounded-full bg-white/10 px-3 py-1 text-xs font-semibold ring-1 ring-white/10">
                   Public Impact Mode
                 </span>
                 <span className={cn("rounded-full px-3 py-1 text-xs font-semibold", pill)}>{direction}</span>
               </div>
 
-              <h2 className="text-2xl font-extrabold tracking-tight">How would this affect you?</h2>
+              <h2 className="text-xl sm:text-2xl font-extrabold tracking-tight">How would this affect you?</h2>
               <p className="mt-2 max-w-2xl text-sm leading-6 text-white/70">
                 Move the USD/PHP rate and instantly see <span className="text-white">real-life peso impact</span> on common expenses.
                 results update live.
@@ -264,9 +264,9 @@ export default function ImpactMode({ latestRate }: Props) {
             </div>
 
             {/* headline delta */}
-            <div className="min-w-[260px] rounded-2xl border border-white/10 bg-white/5 p-5">
+            <div className="w-full lg:min-w-[260px] lg:w-auto rounded-2xl border border-white/10 bg-white/5 p-4 sm:p-5">
               <div className="text-xs font-semibold text-white/60">ESTIMATED TOTAL IMPACT</div>
-              <div className={cn("mt-3 text-3xl font-extrabold", totalDeltaColor)}>
+              <div className={cn("mt-3 text-2xl sm:text-3xl font-extrabold", totalDeltaColor)}>
                 {totalDeltaTween >= 0 ? "+" : "−"}
                 {fmtPeso0(Math.abs(totalDeltaTween)).replace("-", "")}
               </div>
@@ -274,10 +274,10 @@ export default function ImpactMode({ latestRate }: Props) {
             </div>
           </div>
 
-          <div className="mt-6 grid gap-4 lg:grid-cols-[1fr,420px]">
+          <div className="mt-6 grid gap-4 grid-cols-1 lg:grid-cols-[1fr,420px]">
             {/* LEFT: controls */}
-            <div className="rounded-2xl border border-white/10 bg-white/5 p-5">
-              <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="rounded-2xl border border-white/10 bg-white/5 p-4 sm:p-5">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                 <div>
                   <div className="text-xs font-semibold text-white/60">IF USD/PHP MOVES BY</div>
                   <div className={cn("mt-1 text-lg font-extrabold", directionTone)}>
@@ -320,7 +320,7 @@ export default function ImpactMode({ latestRate }: Props) {
                   className="mt-2 w-full accent-indigo-400"
                   aria-label="USD/PHP move percent"
                 />
-                <div className="mt-2 text-xs text-white/60">This simulates an FX move, it’s not a prediction.</div>
+                <div className="mt-2 text-xs text-white/60">This simulates an FX move, it's not a prediction.</div>
               </div>
 
               {/* impact meter */}
@@ -340,16 +340,16 @@ export default function ImpactMode({ latestRate }: Props) {
             </div>
 
             {/* RIGHT: sticky live results */}
-            <div className="lg:sticky lg:top-24">
-              <div className="rounded-2xl border border-white/10 bg-white/5 p-5">
-                <div className="flex items-center justify-between">
+            <div className="lg:sticky lg:top-24 lg:self-start">
+              <div className="rounded-2xl border border-white/10 bg-white/5 p-4 sm:p-5">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                   <div>
                     <div className="text-xs font-semibold text-white/60">LIVE RESULTS</div>
                     <div className="mt-1 text-sm text-white/70">
                       4 baskets update instantly. edit USD exposure below for more accurate results.
                     </div>
                   </div>
-                  <div className="text-xs text-white/60">Above the fold </div>
+                  <div className="text-xs text-white/60 hidden sm:block">Above the fold</div>
                 </div>
 
                 <div className="mt-4">{heroMiniCards}</div>
@@ -365,16 +365,16 @@ export default function ImpactMode({ latestRate }: Props) {
           </div>
 
           {/* ALWAYS VISIBLE: Spending + Why */}
-          <div className="mt-6 grid gap-4 lg:grid-cols-2">
+          <div className="mt-6 grid gap-4 grid-cols-1 lg:grid-cols-2">
             {/* spending editor */}
-            <div className="rounded-2xl border border-white/10 bg-white/5 p-5">
+            <div className="rounded-2xl border border-white/10 bg-white/5 p-4 sm:p-5">
               <div className="text-xs font-semibold text-white/60">SET YOUR SPENDING</div>
 
               <div className="mt-2 text-sm leading-6 text-white/70">
-                <span className="text-white font-semibold">What is “USD exposure”?</span>{" "}
-                It’s the part of this expense that usually follows the dollar (imports, USD pricing, card FX conversion).
+                <span className="text-white font-semibold">What is "USD exposure"?</span>{" "}
+                It's the part of this expense that usually follows the dollar (imports, USD pricing, card FX conversion).
                 <span className="text-white font-semibold"> Drag the exposure slider</span>{" "}
-                to tell Peso Pilot how “USD-linked” this spending is and watch the live results update.
+                to tell Peso Pilot how "USD-linked" this spending is and watch the live results update.
               </div>
 
               <div className="mt-4 space-y-4">
@@ -382,7 +382,7 @@ export default function ImpactMode({ latestRate }: Props) {
                   const b = buckets[k];
                   return (
                     <div key={b.key} className="rounded-xl border border-white/10 bg-white/3 p-3">
-                      <div className="flex items-center justify-between gap-3">
+                      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                         <div className="flex items-center gap-2">
                           <span className="text-lg">{b.emoji}</span>
                           <div className="leading-tight">
@@ -395,7 +395,7 @@ export default function ImpactMode({ latestRate }: Props) {
                         </div>
                       </div>
 
-                      <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                      <div className="mt-3 grid gap-3 grid-cols-1 sm:grid-cols-2">
                         <label className="block">
                           <div className="text-xs font-semibold text-white/60">Amount (₱)</div>
                           <input
@@ -427,7 +427,7 @@ export default function ImpactMode({ latestRate }: Props) {
                 })}
               </div>
 
-              <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-white/10 bg-white/5 p-4">
+              <div className="mt-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 rounded-2xl border border-white/10 bg-white/5 p-4">
                 <div className="text-xs text-white/60">Reset basket defaults</div>
                 <button
                   type="button"
@@ -449,7 +449,7 @@ export default function ImpactMode({ latestRate }: Props) {
             </div>
 
             {/* deeper explanations */}
-            <div className="rounded-2xl border border-white/10 bg-white/5 p-5">
+            <div className="rounded-2xl border border-white/10 bg-white/5 p-4 sm:p-5">
               <div className="text-xs font-semibold text-white/60">WHY THESE MOVE</div>
               <div className="mt-2 text-sm text-white/70">
                 When the dollar strengthens or weakens, it changes how much the Philippines pays for imported goods and services priced in USD. Items we rely on from abroad (like fuel, food, etc) usually feel the impact first, while locally sourced expenses move more slowly. This section shows where exchange rate changes are most likely to show up in everyday spending
@@ -464,7 +464,7 @@ export default function ImpactMode({ latestRate }: Props) {
 
                   return (
                     <div key={k} className="rounded-2xl border border-white/10 bg-[#070B18]/35 p-4">
-                      <div className="flex items-start justify-between gap-3">
+                      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
                         <div className="flex items-center gap-2">
                           <span className="text-lg">{b.emoji}</span>
                           <div className="leading-tight">
@@ -472,7 +472,7 @@ export default function ImpactMode({ latestRate }: Props) {
                             <div className="text-xs text-white/60">{b.subtitle}</div>
                           </div>
                         </div>
-                        <span className={cn("rounded-full px-2.5 py-1 text-xs font-semibold", chip)}>
+                        <span className={cn("rounded-full px-2.5 py-1 text-xs font-semibold whitespace-nowrap", chip)}>
                           {delta >= 0 ? "+" : "−"}
                           {fmtPeso0(Math.abs(delta)).replace("-", "")}
                         </span>

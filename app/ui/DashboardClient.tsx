@@ -38,7 +38,6 @@ function useAnimatedNumber(target: number, duration = 800) {
       const elapsed = Date.now() - startTime;
       const progress = Math.min(elapsed / duration, 1);
 
-      // Easing function (ease-out)
       const easeOut = 1 - Math.pow(1 - progress, 3);
 
       setCurrent(start + diff * easeOut);
@@ -61,7 +60,6 @@ type FanPoint = {
   date: string;
   expected: number;
 
-  // Baseline+band (upper-lower) lets Recharts fill a clean interval
   base95: number;
   band95: number;
 
@@ -72,22 +70,14 @@ type FanPoint = {
   band50: number;
 };
 
-// Two-sided z-scores (approx)
-const Z50 = 0.674; // 50%
-const Z75 = 1.15; // 75%
-const Z95 = 1.96; // 95%
+const Z50 = 0.674;
+const Z75 = 1.15;
+const Z95 = 1.96;
 
 function toISODate(d: Date) {
   return d.toISOString().slice(0, 10);
 }
 
-/**
- * Volatility-driven lognormal envelope:
- * expected_t = spot * exp(muDaily * t)
- * band uses exp(± z * sigmaDaily * sqrt(t))
- *
- * annualVol is decimal (0.12 = 12%).
- */
 function buildFanChart({
   spot,
   startDate,
@@ -161,10 +151,10 @@ export default function DashboardClient({ latest }: Props) {
   // ========================================
   // Scenario Simulator State
   // ========================================
-  const [scenarioPct, setScenarioPct] = useState<number>(1.0); // percent move in USD/PHP
+  const [scenarioPct, setScenarioPct] = useState<number>(1.0);
   const [scenarioDirection, setScenarioDirection] = useState<"up" | "down">("up");
   const [scenarioExposureType, setScenarioExposureType] = useState<"receivable" | "payable">("receivable");
-  const [scenarioExposureUsd, setScenarioExposureUsd] = useState<number>(100000); // USD exposure
+  const [scenarioExposureUsd, setScenarioExposureUsd] = useState<number>(100000);
 
   // ========================================
   // Narrative Dropdown Selection (SAFE)
@@ -195,9 +185,8 @@ export default function DashboardClient({ latest }: Props) {
     textMuted: isDark ? "#9fb0c7" : "#52607a",
     card: isDark ? "rgba(17,24,39,0.74)" : "rgba(255,255,255,0.90)",
     border: isDark ? "rgba(255,255,255,0.10)" : "rgba(15,23,42,0.10)",
-    // restrained accents
-    primary: "#1d4ed8", // deep blue
-    accent: "#0f766e", // teal
+    primary: "#1d4ed8",
+    accent: "#0f766e",
     grid: isDark ? "rgba(255,255,255,0.06)" : "rgba(15,23,42,0.06)",
     success: "#16a34a",
     danger: "#dc2626",
@@ -262,7 +251,6 @@ export default function DashboardClient({ latest }: Props) {
     loadDefault90();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-
   const rates = useMemo(() => chartData.map((d) => d.rate).filter(Number.isFinite), [chartData]);
   const last = chartData[chartData.length - 1];
   const prev = chartData[chartData.length - 2];
@@ -273,9 +261,6 @@ export default function DashboardClient({ latest }: Props) {
   const minRange = rates.length ? Math.min(...rates) : 0;
   const maxRange = rates.length ? Math.max(...rates) : 0;
 
-  // ========================================
-  // MOVING AVERAGE CALCULATION (7-day)
-  // ========================================
   const chartDataWithMA = useMemo(() => {
     if (!showMA || chartData.length < 7) return chartData;
 
@@ -289,9 +274,6 @@ export default function DashboardClient({ latest }: Props) {
     });
   }, [chartData, showMA]);
 
-  // ========================================
-  // MARKET STATUS MESSAGE
-  // ========================================
   const marketStatus = useMemo(() => {
     const today = new Date().toISOString().split("T")[0];
     const latestDate = latestISO;
@@ -349,9 +331,7 @@ export default function DashboardClient({ latest }: Props) {
       setLoading(false);
     }
   }
-  // ========================================
-  // MINI SPARKLINE COMPONENT
-  // ========================================
+
   const MiniSparkline = ({ data, color }: { data: { rate: number }[]; color: string }) => {
     if (!data.length) return null;
 
@@ -366,9 +346,6 @@ export default function DashboardClient({ latest }: Props) {
     );
   };
 
-  // ========================================
-  // KPI CARD WITH ANIMATION + SUBTLE GLOW
-  // ========================================
   const KpiCard = ({
     title,
     value,
@@ -391,7 +368,6 @@ export default function DashboardClient({ latest }: Props) {
       ? (animatedValue >= 0 ? "+" : "") + fmt3(animatedValue)
       : fmt3(animatedValue);
 
-    // Subtle “professional” glow: blue for neutral, green/red only if trend
     const glow = trend > 0 ? theme.danger : trend < 0 ? theme.success : theme.primary;
 
     return (
@@ -406,7 +382,6 @@ export default function DashboardClient({ latest }: Props) {
             : `0 14px 34px -26px rgba(15,23,42,0.22), 0 0 0 1px rgba(15,23,42,0.06)`,
         }}
       >
-        {/* subtle top edge glow */}
         <div
           style={{
             position: "absolute",
@@ -452,15 +427,11 @@ export default function DashboardClient({ latest }: Props) {
     );
   };
 
-  // Sparkline data for KPIs (last 30 points)
   const sparklineData = useMemo(() => {
     const last30 = chartData.slice(-30);
     return last30.length > 0 ? last30 : [];
   }, [chartData]);
 
-  // ========================================
-  // Risk Metrics (computed from chartData)
-  // ========================================
   const risk = useMemo(() => computeFxRiskMetrics(chartData), [chartData]);
 
   const vol30 = risk.vol30Ann;
@@ -469,20 +440,13 @@ export default function DashboardClient({ latest }: Props) {
   const worstMove = risk.worstDailyMove;
   const bestMove = risk.bestDailyMove;
 
-  // ========================================
-  // Regime window selection (changes with preset)
-  // ========================================
   function regimeWindowReturns(preset: typeof activePreset) {
     if (preset === "7D") return 7;
     if (preset === "30D") return 30;
     if (preset === "90D") return 90;
-    // For YTD/CUSTOM: use a stable default; still reflects window because vol inputs come from chartData
     return 90;
   }
 
-  // ========================================
-  // Volatility Regime Badge (changes with preset)
-  // ========================================
   const volRegime = useMemo(() => {
     const windowN = regimeWindowReturns(activePreset);
 
@@ -499,11 +463,9 @@ export default function DashboardClient({ latest }: Props) {
       };
     }
 
-    const v = volForWindow; // decimal (0.12 = 12%)
+    const v = volForWindow;
     const volText = `• ${fmtPct2(v * 100)}%`;
 
-    // Thresholds (annualized):
-    // <8% low, 8–15% normal, >15% high
     if (v < 0.08) {
       return {
         label: "Low Vol",
@@ -533,9 +495,7 @@ export default function DashboardClient({ latest }: Props) {
       volText,
     };
   }, [activePreset, vol30, vol90, isDark, theme]);
-  // ========================================
-  // Narrative Header + Dropdown Modules — text EXACT as given
-  // ========================================
+
   const CORE_NARRATIVE_LOW = `Low Volatility Regime - Core Narrative (<8%)
 Interpretation
  PHP/USD is trading within a relatively narrow range, indicating subdued short-term price fluctuations and stable market conditions. This environment often reflects balanced FX flows and limited near-term shocks, allowing currency movements to be more predictable than usual.`;
@@ -608,7 +568,6 @@ Operational Impact
       return RISK_EXPOSURE_HIGH;
     }
 
-    // Hedging & Treasury Behavior
     if (narrativeRegimeKey === "low") return HEDGING_TREASURY_LOW;
     if (narrativeRegimeKey === "normal") return HEDGING_TREASURY_NORMAL;
     return HEDGING_TREASURY_HIGH;
@@ -623,9 +582,6 @@ Operational Impact
     HEDGING_TREASURY_HIGH,
   ]);
 
-  // ========================================
-  // Narrative UI Helpers (SAFE: display-only)
-  // ========================================
   function splitFirstLine(text: string) {
     const idx = text.indexOf("\n");
     if (idx === -1) return { first: text, rest: "" };
@@ -666,7 +622,6 @@ Operational Impact
           position: "relative",
           borderRadius: 24,
           padding: 1,
-          // subtle premium edge: blue-teal, not loud
           background: isDark
             ? "linear-gradient(135deg, rgba(29,78,216,0.22), rgba(15,118,110,0.10))"
             : "linear-gradient(135deg, rgba(29,78,216,0.14), rgba(15,118,110,0.08))",
@@ -690,8 +645,7 @@ Operational Impact
             height: "100%",
           }}
         >
-          {/* Top header row */}
-          <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12 }}>
+          <div className="pp-narr-top">
             <div>
               <div
                 style={{
@@ -740,12 +694,9 @@ Operational Impact
             )}
           </div>
 
-          {/* Body */}
           <div style={{ marginTop: 16 }}>
-            {/* First line as headline */}
             <div style={{ fontSize: 16, fontWeight: 950, letterSpacing: -0.3, color: theme.text }}>{first}</div>
 
-            {/* Rest: line-by-line (highlights headers; preserves exact text) */}
             {restLines.length > 0 && (
               <div style={{ marginTop: 10 }}>
                 {restLines.map((line, idx) => {
@@ -843,11 +794,8 @@ Operational Impact
       </div>
     );
   }
-  // ========================================
-  // CONFIDENCE BANDS DATA (30D FAN CHART)
-  // ========================================
+
   const baseSpot = useMemo(() => {
-    // Prefer latest; fallback to last chart point
     const s = Number.isFinite(Number(latest?.rate)) ? Number(latest.rate) : chartData[chartData.length - 1]?.rate ?? 0;
     return Number(s) || 0;
   }, [latest, chartData]);
@@ -858,7 +806,6 @@ Operational Impact
   }, [chartData, latestISO]);
 
   const fanAnnualVol = useMemo(() => {
-    // Match selected window: <=30 uses 30D vol; >30 uses 90D vol.
     const windowN = regimeWindowReturns(activePreset);
     const v = windowN <= 30 ? vol30 : vol90;
     return v ?? null;
@@ -896,7 +843,6 @@ Operational Impact
     return [...hist, ...fwd];
   }, [chartData, fanData]);
 
-  // Tooltip for Fan Chart (consistent style)
   const FanTooltip = ({ active, payload, label }: any) => {
     if (!active || !payload?.length) return null;
 
@@ -964,9 +910,6 @@ Operational Impact
     );
   };
 
-  // ========================================
-  //  Scenario Simulator Calculations (uses current/latest rate)
-  // ========================================
   const scenario = useMemo(() => {
     const baseRate = Number.isFinite(Number(latest?.rate)) ? Number(latest.rate) : chartData[chartData.length - 1]?.rate ?? 0;
 
@@ -994,12 +937,9 @@ Operational Impact
     };
   }, [latest, chartData, scenarioPct, scenarioDirection, scenarioExposureUsd, scenarioExposureType]);
 
-  // ========================================
-  // Sensitivity Curve Data (P/L vs Shock %)
-  // ========================================
   const selectedShockSignedPct = useMemo(() => {
     const pct = Math.max(0, Number(scenarioPct) || 0);
-    return scenarioDirection === "up" ? pct : -pct; // in percent units
+    return scenarioDirection === "up" ? pct : -pct;
   }, [scenarioPct, scenarioDirection]);
 
   const sensitivityData = useMemo(() => {
@@ -1046,9 +986,6 @@ Operational Impact
     return [min - pad, max + pad] as const;
   }, [sensitivityData]);
 
-  // ========================================
-  // Tooltip for Sensitivity Curve
-  // ========================================
   const SensitivityTooltip = ({ active, payload }: any) => {
     if (!active || !payload?.length) return null;
 
@@ -1084,7 +1021,6 @@ Operational Impact
       </div>
     );
   };
-
   return (
     <main
       style={{
@@ -1096,9 +1032,6 @@ Operational Impact
         overflow: "hidden",
       }}
     >
-      {/* ========================================
-          SUBTLE AURORA BACKGROUND (professional)
-          ======================================== */}
       <div
         style={{
           position: "fixed",
@@ -1136,41 +1069,152 @@ Operational Impact
           height: 200%;
           background: radial-gradient(
               ellipse at 20% 30%,
-              rgba(29, 78, 216, 0.40) 0%,
+              rgba(29, 78, 216, 0.4) 0%,
               transparent 55%
             ),
-            radial-gradient(
-              ellipse at 80% 70%,
-              rgba(15, 118, 110, 0.26) 0%,
-              transparent 58%
-            ),
-            radial-gradient(
-              ellipse at 55% 40%,
-              rgba(2, 6, 23, 0.28) 0%,
-              transparent 60%
-            );
+            radial-gradient(ellipse at 80% 70%, rgba(15, 118, 110, 0.26) 0%, transparent 58%),
+            radial-gradient(ellipse at 55% 40%, rgba(2, 6, 23, 0.28) 0%, transparent 60%);
           animation: aurora 22s ease-in-out infinite;
           filter: blur(56px);
         }
+
+        .pp-wrap {
+          display: grid;
+          gap: 32px;
+          padding: 40px 20px;
+          max-width: 1200px;
+          margin: 0 auto;
+          font-family: Inter, sans-serif;
+          position: relative;
+          z-index: 1;
+        }
+
+        .pp-top {
+          display: flex;
+          justify-content: space-between;
+          align-items: flex-start;
+          flex-wrap: wrap;
+          gap: 20px;
+        }
+
+        .pp-right {
+          display: flex;
+          gap: 12px;
+          align-items: center;
+          width: 100%;
+          justify-content: flex-end;
+        }
+
+        .pp-right-stack {
+          display: flex;
+          flex-direction: column;
+          gap: 10px;
+          align-items: flex-end;
+          width: 100%;
+          max-width: 720px;
+        }
+
+        .pp-datebar {
+          display: flex;
+          gap: 8px;
+          align-items: center;
+          background: ${theme.card};
+          padding: 4px;
+          border-radius: 14px;
+          border: 1px solid ${theme.border};
+          width: 100%;
+          flex-wrap: wrap;
+        }
+
+        .pp-datebar > * {
+          flex: 0 0 auto;
+        }
+
+        .pp-datebar .pp-date {
+          flex: 1 1 180px;
+          min-width: 160px;
+        }
+
+        .pp-datebar .pp-btn {
+          flex: 0 0 auto;
+          white-space: nowrap;
+        }
+
+        .pp-presets-row {
+          display: flex;
+          gap: 12px;
+          align-items: center;
+          width: 100%;
+          justify-content: flex-end;
+          flex-wrap: wrap;
+        }
+
+        .pp-presets {
+          display: flex;
+          gap: 4px;
+          background: ${theme.card};
+          padding: 4px;
+          border-radius: 14px;
+          border: 1px solid ${theme.border};
+          flex-wrap: wrap;
+        }
+
+        .pp-narr-top {
+          display: flex;
+          align-items: flex-start;
+          justify-content: space-between;
+          gap: 12px;
+          flex-wrap: wrap;
+        }
+
+        .pp-chart-card {
+          height: 500px;
+          display: flex;
+          flex-direction: column;
+        }
+
+        @media (max-width: 900px) {
+          .pp-wrap {
+            padding: 28px 14px;
+            gap: 22px;
+          }
+
+          .pp-right {
+            justify-content: flex-start;
+          }
+
+          .pp-right-stack {
+            align-items: stretch;
+            max-width: 100%;
+          }
+
+          .pp-presets-row {
+            justify-content: space-between;
+          }
+
+          .pp-chart-card {
+            height: 440px;
+          }
+        }
+
+        @media (max-width: 560px) {
+          .pp-wrap {
+            padding: 22px 12px;
+            gap: 18px;
+          }
+
+          .pp-chart-card {
+            height: 380px;
+          }
+        }
       `}</style>
 
-      <section
-        style={{
-          display: "grid",
-          gap: 32,
-          padding: "40px 20px",
-          maxWidth: 1200,
-          margin: "0 auto",
-          fontFamily: "Inter, sans-serif",
-          position: "relative",
-          zIndex: 1,
-        }}
-      >
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 20 }}>
+      <section className="pp-wrap">
+        <div className="pp-top">
           <div>
             <h1
-             style={{
-                fontSize: 40,
+              style={{
+                fontSize: "clamp(28px, 4.1vw, 40px)",
                 fontWeight: 950,
                 margin: 0,
                 letterSpacing: "-1.4px",
@@ -1181,19 +1225,14 @@ Operational Impact
                 backgroundClip: "text",
                 color: "transparent",
                 WebkitTextFillColor: "transparent",
-                textShadow: isDark
-                  ? "0 1px 12px rgba(15, 23, 42, 0.35)"
-                  : "0 1px 8px rgba(15, 23, 42, 0.15)",
+                textShadow: isDark ? "0 1px 12px rgba(15, 23, 42, 0.35)" : "0 1px 8px rgba(15, 23, 42, 0.15)",
               }}
             >
               Peso Pilot
             </h1>
 
-            <p style={{ color: theme.textMuted, margin: "6px 0 0 0", fontSize: 16 }}>
-              USD/PHP Market Analytics
-            </p>
+            <p style={{ color: theme.textMuted, margin: "6px 0 0 0", fontSize: 16 }}>USD/PHP Market Analytics</p>
 
-            {/* Market status */}
             <div
               style={{
                 marginTop: 10,
@@ -1242,22 +1281,11 @@ Operational Impact
             </div>
           </div>
 
-          {/* Upper-right controls */}
-          <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
-            <div style={{ display: "flex", flexDirection: "column", gap: 10, alignItems: "flex-end" }}>
-              {/* Date filter bar */}
-              <div
-                style={{
-                  display: "flex",
-                  gap: 8,
-                  alignItems: "center",
-                  background: theme.card,
-                  padding: 4,
-                  borderRadius: 14,
-                  border: `1px solid ${theme.border}`,
-                }}
-              >
+          <div className="pp-right">
+            <div className="pp-right-stack">
+              <div className="pp-datebar">
                 <input
+                  className="pp-date"
                   type="date"
                   value={start}
                   onChange={(e) => {
@@ -1271,12 +1299,14 @@ Operational Impact
                     background: "transparent",
                     color: theme.text,
                     borderColor: theme.border,
+                    width: "100%",
                   }}
                 />
 
                 <span style={{ opacity: 0.35, fontWeight: 900 }}>→</span>
 
                 <input
+                  className="pp-date"
                   type="date"
                   value={end}
                   onChange={(e) => {
@@ -1290,10 +1320,12 @@ Operational Impact
                     background: "transparent",
                     color: theme.text,
                     borderColor: theme.border,
+                    width: "100%",
                   }}
                 />
 
                 <button
+                  className="pp-btn"
                   disabled={loading}
                   onClick={() => {
                     const norm = normalizeRange(start, end);
@@ -1308,7 +1340,6 @@ Operational Impact
                     cursor: loading ? "not-allowed" : "pointer",
                     fontSize: 13,
                     fontWeight: 900,
-                    // subtle button glow
                     boxShadow: `0 10px 18px -18px ${theme.primary}`,
                   }}
                 >
@@ -1316,8 +1347,7 @@ Operational Impact
                 </button>
               </div>
 
-              {/* Theme + presets */}
-              <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
+              <div className="pp-presets-row">
                 <button
                   onClick={toggleTheme}
                   style={{
@@ -1334,6 +1364,7 @@ Operational Impact
                     justifyContent: "center",
                     color: theme.text,
                     boxShadow: isDark ? "0 10px 18px -16px rgba(0,0,0,0.6)" : "0 10px 18px -18px rgba(15,23,42,0.20)",
+                    flex: "0 0 auto",
                   }}
                   aria-label="Toggle theme"
                   title="Toggle theme"
@@ -1341,16 +1372,7 @@ Operational Impact
                   {isDark ? "🌞" : "🌙"}
                 </button>
 
-                <div
-                  style={{
-                    display: "flex",
-                    gap: 4,
-                    background: theme.card,
-                    padding: 4,
-                    borderRadius: 14,
-                    border: `1px solid ${theme.border}`,
-                  }}
-                >
+                <div className="pp-presets">
                   {(["7D", "30D", "90D", "YTD"] as const).map((p) => (
                     <button
                       key={p}
@@ -1407,7 +1429,6 @@ Operational Impact
           </div>
         )}
 
-        {/* KPI CARDS */}
         <div style={{ display: "grid", gap: 20, gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))" }}>
           <KpiCard
             title="Live Rate"
@@ -1427,8 +1448,7 @@ Operational Impact
           <KpiCard title="Range High" value={`₱${fmt3(maxRange)}`} sub="Period Max" trend={0} sparklineData={sparklineData} />
         </div>
 
-        {/* MAIN CHART */}
-        <div style={{ ...cardStyle, height: 500, display: "flex", flexDirection: "column" }}>
+        <div style={{ ...cardStyle }} className="pp-chart-card">
           <div
             style={{
               marginBottom: 24,
@@ -1452,7 +1472,6 @@ Operational Impact
               />
               <span style={{ fontWeight: 900, fontSize: 18, letterSpacing: -0.5 }}>{modeLabel} Overview</span>
 
-              {/* Volatility Regime Badge */}
               <span
                 title={volRegime.helper}
                 style={{
@@ -1486,7 +1505,6 @@ Operational Impact
               {loading && <span style={{ fontSize: 12, color: theme.textMuted, marginLeft: 8 }}>Loading…</span>}
             </div>
 
-            {/* MA Toggle */}
             <button
               onClick={() => setShowMA(!showMA)}
               disabled={chartData.length < 7}
@@ -1565,8 +1583,6 @@ Operational Impact
             <Brush dataKey="date" height={30} stroke={theme.primary} fill={theme.card} travellerWidth={10} />
           </div>
         </div>
-
-        {/* Narrative section */}
         <div
           style={{
             display: "grid",
@@ -1591,9 +1607,7 @@ Operational Impact
               <div style={{ fontSize: 12, fontWeight: 900, letterSpacing: 0.8, textTransform: "uppercase", color: theme.textMuted }}>
                 Narrative Header
               </div>
-              <div style={{ marginTop: 10, fontSize: 13, opacity: 0.8 }}>
-                Not enough data to generate the narrative for this window.
-              </div>
+              <div style={{ marginTop: 10, fontSize: 13, opacity: 0.8 }}>Not enough data to generate the narrative for this window.</div>
             </div>
           )}
 
@@ -1627,7 +1641,7 @@ Operational Impact
                 flexDirection: "column",
               }}
             >
-              <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12 }}>
+              <div className="pp-narr-top">
                 <div>
                   <div style={{ fontSize: 12, fontWeight: 900, letterSpacing: 0.8, textTransform: "uppercase", color: theme.textMuted }}>
                     Dropdown
@@ -1665,7 +1679,6 @@ Operational Impact
           </div>
         </div>
 
-        {/* Risk Metrics */}
         <div style={{ display: "grid", gap: 14 }}>
           <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
             <div style={{ fontWeight: 950, letterSpacing: -0.5, fontSize: 16 }}>Risk Metrics</div>
@@ -1706,7 +1719,6 @@ Operational Impact
           </div>
         </div>
 
-        {/* FX Outlook */}
         <div style={{ display: "grid", gap: 14 }}>
           <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
             <div style={{ fontWeight: 950, letterSpacing: -0.5, fontSize: 16 }}>FX Outlook (30D Confidence Bands)</div>
@@ -1720,9 +1732,7 @@ Operational Impact
             </div>
 
             {!fanAnnualVol ? (
-              <div style={{ fontSize: 13, color: theme.textMuted, fontWeight: 850 }}>
-                Not enough data to compute confidence bands for this window.
-              </div>
+              <div style={{ fontSize: 13, color: theme.textMuted, fontWeight: 850 }}>Not enough data to compute confidence bands for this window.</div>
             ) : (
               <>
                 <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginBottom: 10 }}>
@@ -1730,13 +1740,11 @@ Operational Impact
                     Spot: <span style={{ color: theme.text, fontWeight: 950 }}>₱{fmt3(baseSpot)}</span>
                   </span>
                   <span style={{ fontSize: 12, fontWeight: 850, color: theme.textMuted }}>
-                    Vol used:{" "}
-                    <span style={{ color: theme.text, fontWeight: 950 }}>{fmtPct2((fanAnnualVol ?? 0) * 100)}%</span>{" "}
+                    Vol used: <span style={{ color: theme.text, fontWeight: 950 }}>{fmtPct2((fanAnnualVol ?? 0) * 100)}%</span>{" "}
                     <span style={{ opacity: 0.75 }}>(annualized)</span>
                   </span>
                   <span style={{ fontSize: 12, fontWeight: 850, color: theme.textMuted }}>
-                    Start:{" "}
-                    <span style={{ color: theme.text, fontWeight: 950 }}>{chartData.length ? chartData[chartData.length - 1].date : latestISO}</span>
+                    Start: <span style={{ color: theme.text, fontWeight: 950 }}>{chartData.length ? chartData[chartData.length - 1].date : latestISO}</span>
                   </span>
                 </div>
 
@@ -1786,7 +1794,6 @@ Operational Impact
           </div>
         </div>
 
-        {/* Scenario Simulator */}
         <div style={{ display: "grid", gap: 14 }}>
           <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
             <div style={{ fontWeight: 950, letterSpacing: -0.5, fontSize: 16 }}>Scenario Simulator</div>
@@ -1801,7 +1808,6 @@ Operational Impact
             </div>
 
             <div style={{ display: "grid", gap: 16, gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))" }}>
-              {/* Exposure */}
               <div
                 style={{
                   border: `1px solid ${theme.border}`,
@@ -1856,7 +1862,6 @@ Operational Impact
                 </div>
               </div>
 
-              {/* Market Move */}
               <div
                 style={{
                   border: `1px solid ${theme.border}`,
@@ -1901,7 +1906,7 @@ Operational Impact
                 <div style={{ marginTop: 12 }}>
                   <div style={{ fontSize: 12, fontWeight: 850, color: theme.textMuted, marginBottom: 6 }}>Shock Size (%)</div>
 
-                  <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
+                  <div className="pp-shock-row" style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
                     <input
                       type="range"
                       min={0}
@@ -1909,7 +1914,7 @@ Operational Impact
                       step={0.1}
                       value={scenarioPct}
                       onChange={(e) => setScenarioPct(Number(e.target.value))}
-                      style={{ width: "100%" }}
+                      style={{ width: "100%", flex: "1 1 220px" }}
                     />
                     <input
                       type="number"
@@ -1925,6 +1930,7 @@ Operational Impact
                         color: theme.text,
                         borderColor: theme.border,
                         padding: "8px 10px",
+                        flex: "0 0 auto",
                       }}
                     />
                   </div>
@@ -1935,7 +1941,6 @@ Operational Impact
                 </div>
               </div>
 
-              {/* Results */}
               <div
                 style={{
                   border: `1px solid ${theme.border}`,
@@ -1949,19 +1954,23 @@ Operational Impact
                 </div>
 
                 <div style={{ marginTop: 12, display: "grid", gap: 10 }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", gap: 10 }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", gap: 10, flexWrap: "wrap" }}>
                     <span style={{ fontSize: 12, color: theme.textMuted, fontWeight: 850 }}>Baseline (PHP)</span>
-                    <span style={{ fontSize: 14, fontWeight: 950 }}>{scenario.baselinePhp.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
+                    <span style={{ fontSize: 14, fontWeight: 950 }}>
+                      {scenario.baselinePhp.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                    </span>
                   </div>
 
-                  <div style={{ display: "flex", justifyContent: "space-between", gap: 10 }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", gap: 10, flexWrap: "wrap" }}>
                     <span style={{ fontSize: 12, color: theme.textMuted, fontWeight: 850 }}>Shocked (PHP)</span>
-                    <span style={{ fontSize: 14, fontWeight: 950 }}>{scenario.shockedPhp.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
+                    <span style={{ fontSize: 14, fontWeight: 950 }}>
+                      {scenario.shockedPhp.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                    </span>
                   </div>
 
                   <div style={{ height: 1, background: theme.border, opacity: 0.7, margin: "6px 0" }} />
 
-                  <div style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "baseline" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "baseline", flexWrap: "wrap" }}>
                     <span style={{ fontSize: 12, color: theme.textMuted, fontWeight: 950 }}>P/L Impact (PHP)</span>
                     <span style={{ fontSize: 16, fontWeight: 950, color: scenario.deltaPhp >= 0 ? theme.success : theme.danger }}>
                       {scenario.deltaPhp >= 0 ? "+" : ""}
@@ -1996,7 +2005,6 @@ Operational Impact
           </div>
         </div>
 
-        {/* FX Sensitivity Curve */}
         <div style={{ display: "grid", gap: 14 }}>
           <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
             <div style={{ fontWeight: 950, letterSpacing: -0.5, fontSize: 16 }}>FX Sensitivity Curve</div>
@@ -2049,12 +2057,7 @@ Operational Impact
 
                   <ReferenceLine y={0} stroke={theme.textMuted} strokeDasharray="4 4" strokeOpacity={0.55} />
 
-                  <ReferenceLine
-                    x={Number(selectedShockSignedPct.toFixed(1))}
-                    stroke={theme.primary}
-                    strokeDasharray="6 6"
-                    strokeOpacity={0.85}
-                  />
+                  <ReferenceLine x={Number(selectedShockSignedPct.toFixed(1))} stroke={theme.primary} strokeDasharray="6 6" strokeOpacity={0.85} />
 
                   <Line type="monotone" dataKey="pnlPhp" stroke={theme.primary} strokeWidth={3} dot={false} isAnimationActive={true} animationDuration={650} />
                 </LineChart>
@@ -2103,13 +2106,11 @@ function RiskCard({
     <div
       style={{
         ...cardStyle,
-
-        // ✅ FIX: avoid mixing `border` shorthand with `borderLeft`
         border: "none",
         borderTop: `1px solid ${theme.border}`,
         borderRight: `1px solid ${theme.border}`,
         borderBottom: `1px solid ${theme.border}`,
-        borderLeft: `3px solid ${theme.primary}33`, // subtle accent left border (safe)
+        borderLeft: `3px solid ${theme.primary}33`,
       }}
     >
       <div
@@ -2129,10 +2130,6 @@ function RiskCard({
   );
 }
 
-
-// ========================================
-// ENHANCED TOOLTIP WITH CHANGE INDICATOR
-// ========================================
 function EnhancedTooltip({ active, payload, label, isDark, theme, chartData }: any) {
   if (!active || !payload?.length) return null;
 
