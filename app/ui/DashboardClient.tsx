@@ -1169,20 +1169,26 @@ Operational Impact
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 20 }}>
           <div>
             <h1
-              style={{
+             style={{
                 fontSize: 40,
                 fontWeight: 950,
                 margin: 0,
                 letterSpacing: "-1.4px",
-                // subtle gradient text, not neon
-                background: `linear-gradient(135deg, ${theme.text}, ${theme.primary})`,
+                lineHeight: 1.05,
+                display: "inline-block",
+                backgroundImage: `linear-gradient(135deg, ${theme.text} 35%, ${theme.primary} 100%)`,
                 WebkitBackgroundClip: "text",
-                WebkitTextFillColor: "transparent",
                 backgroundClip: "text",
+                color: "transparent",
+                WebkitTextFillColor: "transparent",
+                textShadow: isDark
+                  ? "0 1px 12px rgba(15, 23, 42, 0.35)"
+                  : "0 1px 8px rgba(15, 23, 42, 0.15)",
               }}
             >
               Peso Pilot
             </h1>
+
             <p style={{ color: theme.textMuted, margin: "6px 0 0 0", fontSize: 16 }}>
               USD/PHP Market Analytics
             </p>
@@ -2080,9 +2086,6 @@ Operational Impact
   );
 }
 
-// ========================================
-// RISK CARD COMPONENT
-// ========================================
 function RiskCard({
   title,
   value,
@@ -2100,16 +2103,32 @@ function RiskCard({
     <div
       style={{
         ...cardStyle,
-        // subtle accent left border
-        borderLeft: `3px solid ${theme.primary}33`,
+
+        // ✅ FIX: avoid mixing `border` shorthand with `borderLeft`
+        border: "none",
+        borderTop: `1px solid ${theme.border}`,
+        borderRight: `1px solid ${theme.border}`,
+        borderBottom: `1px solid ${theme.border}`,
+        borderLeft: `3px solid ${theme.primary}33`, // subtle accent left border (safe)
       }}
     >
-      <div style={{ color: theme.textMuted, fontSize: 11, fontWeight: 800, textTransform: "uppercase", letterSpacing: 1 }}>{title}</div>
+      <div
+        style={{
+          color: theme.textMuted,
+          fontSize: 11,
+          fontWeight: 800,
+          textTransform: "uppercase",
+          letterSpacing: 1,
+        }}
+      >
+        {title}
+      </div>
       <div style={{ fontSize: 26, fontWeight: 950, margin: "12px 0", color: theme.text }}>{value}</div>
       <div style={{ fontSize: 13, fontWeight: 650, color: theme.textMuted }}>{sub}</div>
     </div>
   );
 }
+
 
 // ========================================
 // ENHANCED TOOLTIP WITH CHANGE INDICATOR

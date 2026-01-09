@@ -1,18 +1,19 @@
 import { prisma } from "@/lib/prisma";
 import ImpactMode from "@/app/ui/ImpactMode";
+import { unstable_noStore as noStore } from "next/cache";
 
 export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 function fmtDate(d: Date) {
   return d.toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" });
 }
 
 export default async function ImpactPage() {
-  const today = new Date();
+  noStore();
 
-  // Latest
   const latest = await prisma.exchangeRate.findFirst({
-    where: { pair: "USD/PHP", source: "BSP", date: { lte: today } },
+    where: { pair: "USD/PHP", source: "BSP" },
     orderBy: { date: "desc" },
     select: { rate: true, date: true },
   });
@@ -21,9 +22,8 @@ export default async function ImpactPage() {
 
   const latestRate = Number(latest.rate);
 
-  // Previous (2nd latest) for day-over-day delta, purely for UI
   const prev = await prisma.exchangeRate.findMany({
-    where: { pair: "USD/PHP", source: "BSP", date: { lte: today } },
+    where: { pair: "USD/PHP", source: "BSP" },
     orderBy: { date: "desc" },
     take: 2,
     select: { rate: true, date: true },
@@ -33,20 +33,12 @@ export default async function ImpactPage() {
   const delta = prevRate != null ? latestRate - prevRate : null;
   const deltaPct = prevRate != null && prevRate !== 0 ? (delta! / prevRate) * 100 : null;
 
-  // Movement-based styling for the KPI card (color/glow changes as data changes)
   const absPct = deltaPct != null ? Math.abs(deltaPct) : 0;
 
   const movement =
-    deltaPct == null
-      ? "neutral"
-      : deltaPct > 0
-      ? "up"
-      : deltaPct < 0
-      ? "down"
-      : "neutral";
+    deltaPct == null ? "neutral" : deltaPct > 0 ? "up" : deltaPct < 0 ? "down" : "neutral";
 
-  const intensity =
-    deltaPct == null ? "none" : absPct >= 0.5 ? "high" : absPct >= 0.25 ? "med" : "low";
+  const intensity = deltaPct == null ? "none" : absPct >= 0.5 ? "high" : absPct >= 0.25 ? "med" : "low";
 
   const kpiStyles =
     movement === "up"
@@ -85,7 +77,6 @@ export default async function ImpactPage() {
 
   return (
     <main className="relative min-h-screen overflow-hidden bg-[#070B18] text-white">
-      {/* Background glow + subtle grid (pure UI) */}
       <div className="pointer-events-none absolute inset-0">
         <div className="absolute -top-40 left-1/2 h-[520px] w-[520px] -translate-x-1/2 rounded-full bg-indigo-500/20 blur-[120px]" />
         <div className="absolute -bottom-56 -left-40 h-[520px] w-[520px] rounded-full bg-fuchsia-500/10 blur-[140px]" />
@@ -102,7 +93,6 @@ export default async function ImpactPage() {
       </div>
 
       <section className="relative mx-auto max-w-6xl px-6 pt-10">
-        {/* Header */}
         <div className="mb-6">
           <div className="inline-flex items-center gap-2 text-sm text-white/60">
             <span className="h-1.5 w-1.5 rounded-full bg-indigo-300 shadow-[0_0_18px_rgba(165,180,252,0.6)]" />
@@ -121,18 +111,15 @@ export default async function ImpactPage() {
               </p>
             </div>
 
-            {/* Live Rate pill (looks “premium”, still pure UI) */}
             <div className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-xs text-white/80 backdrop-blur">
               <span className="mr-2 text-white/50">Latest BSP:</span>
               <span className="font-semibold text-white">{fmtDate(latest.date)}</span>
             </div>
           </div>
 
-          {/* Divider glow */}
           <div className="mt-6 h-px w-full bg-gradient-to-r from-transparent via-white/15 to-transparent" />
         </div>
 
-        {/* Live KPI card that changes color/glow as data changes */}
         <div
           className={[
             "mb-6 rounded-2xl border bg-white/[0.04] p-5 backdrop-blur",
@@ -182,7 +169,6 @@ export default async function ImpactPage() {
           </div>
         </div>
 
-        {/* Your existing feature — unchanged */}
         <ImpactMode latestRate={latestRate} />
       </section>
 

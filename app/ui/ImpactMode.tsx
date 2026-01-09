@@ -71,6 +71,11 @@ function useTweenNumber(target: number, durationMs = 520) {
 }
 
 export default function ImpactMode({ latestRate }: Props) {
+  const [liveRate, setLiveRate] = useState(latestRate);
+  useEffect(() => {
+    setLiveRate(latestRate);
+  }, [latestRate]);
+
   const presets = useMemo(() => [-3, -1, 1, 3], []);
   const [movePct, setMovePct] = useState<number>(1);
 
@@ -128,10 +133,7 @@ export default function ImpactMode({ latestRate }: Props) {
   const fxMultiplier = 1 + movePct / 100;
 
   const results = useMemo(() => {
-    const out: Record<
-      BucketKey,
-      { delta: number; newAmount: number; exposurePeso: number }
-    > = {} as any;
+    const out: Record<BucketKey, { delta: number; newAmount: number; exposurePeso: number }> = {} as any;
 
     (Object.keys(buckets) as BucketKey[]).forEach((k) => {
       const b = buckets[k];
@@ -145,25 +147,15 @@ export default function ImpactMode({ latestRate }: Props) {
   }, [buckets, fxMultiplier]);
 
   const totalDelta = useMemo(() => {
-    return (
-      results.groceries.delta +
-      results.travel.delta +
-      results.rent.delta +
-      results.shopping.delta
-    );
+    return results.groceries.delta + results.travel.delta + results.rent.delta + results.shopping.delta;
   }, [results]);
 
   const totalDeltaTween = useTweenNumber(totalDelta);
-  const totalDeltaColor =
-    totalDelta > 0 ? "text-rose-200" : totalDelta < 0 ? "text-emerald-200" : "text-white";
+  const totalDeltaColor = totalDelta > 0 ? "text-rose-200" : totalDelta < 0 ? "text-emerald-200" : "text-white";
 
   const impactScore = useMemo(() => {
     const base =
-      (buckets.groceries.exposure +
-        buckets.travel.exposure +
-        buckets.rent.exposure +
-        buckets.shopping.exposure) /
-      4;
+      (buckets.groceries.exposure + buckets.travel.exposure + buckets.rent.exposure + buckets.shopping.exposure) / 4;
     return clamp(Math.abs(movePct) * 12 * base, 0, 100);
   }, [buckets, movePct]);
 
@@ -181,10 +173,7 @@ export default function ImpactMode({ latestRate }: Props) {
     }));
   }
 
-  const bucketOrder = useMemo(
-    () => ["groceries", "travel", "rent", "shopping"] as BucketKey[],
-    []
-  );
+  const bucketOrder = useMemo(() => ["groceries", "travel", "rent", "shopping"] as BucketKey[], []);
 
   const heroMiniCards = (
     <div className="grid gap-3 sm:grid-cols-2">
@@ -193,12 +182,9 @@ export default function ImpactMode({ latestRate }: Props) {
         const r = results[k];
         const delta = r.delta;
 
-        const tone =
-          delta > 0 ? "text-rose-200" : delta < 0 ? "text-emerald-200" : "text-white";
+        const tone = delta > 0 ? "text-rose-200" : delta < 0 ? "text-emerald-200" : "text-white";
         const chip =
-          delta >= 0
-            ? "bg-rose-500/10 text-rose-100 ring-1 ring-rose-400/20"
-            : "bg-emerald-500/10 text-emerald-100 ring-1 ring-emerald-400/20";
+          delta >= 0 ? "bg-rose-500/10 text-rose-100 ring-1 ring-rose-400/20" : "bg-emerald-500/10 text-emerald-100 ring-1 ring-emerald-400/20";
 
         const fill = clamp(b.exposure * Math.abs(movePct) * 22, 4, 100);
 
@@ -226,9 +212,7 @@ export default function ImpactMode({ latestRate }: Props) {
 
             <div className="mt-3 flex items-baseline justify-between">
               <div className="text-xs font-semibold text-white/60">NEW EST.</div>
-              <div className={cn("text-sm font-extrabold", tone)}>
-                {fmtPeso0(r.newAmount).replace("-", "₱")}
-              </div>
+              <div className={cn("text-sm font-extrabold", tone)}>{fmtPeso0(r.newAmount).replace("-", "₱")}</div>
             </div>
 
             <div className="mt-3">
@@ -238,10 +222,7 @@ export default function ImpactMode({ latestRate }: Props) {
               </div>
               <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-white/10">
                 <div
-                  className={cn(
-                    "h-full rounded-full transition-all",
-                    delta >= 0 ? "bg-rose-400/60" : "bg-emerald-400/60"
-                  )}
+                  className={cn("h-full rounded-full transition-all", delta >= 0 ? "bg-rose-400/60" : "bg-emerald-400/60")}
                   style={{ width: `${fill}%` }}
                 />
               </div>
@@ -272,17 +253,12 @@ export default function ImpactMode({ latestRate }: Props) {
                 <span className="rounded-full bg-white/10 px-3 py-1 text-xs font-semibold ring-1 ring-white/10">
                   Public Impact Mode
                 </span>
-                <span className={cn("rounded-full px-3 py-1 text-xs font-semibold", pill)}>
-                  {direction}
-                </span>
+                <span className={cn("rounded-full px-3 py-1 text-xs font-semibold", pill)}>{direction}</span>
               </div>
 
-              <h2 className="text-2xl font-extrabold tracking-tight">
-                How would this affect you?
-              </h2>
+              <h2 className="text-2xl font-extrabold tracking-tight">How would this affect you?</h2>
               <p className="mt-2 max-w-2xl text-sm leading-6 text-white/70">
-                Move the USD/PHP rate and instantly see{" "}
-                <span className="text-white">real-life peso impact</span> on common expenses.
+                Move the USD/PHP rate and instantly see <span className="text-white">real-life peso impact</span> on common expenses.
                 results update live.
               </p>
             </div>
@@ -294,9 +270,7 @@ export default function ImpactMode({ latestRate }: Props) {
                 {totalDeltaTween >= 0 ? "+" : "−"}
                 {fmtPeso0(Math.abs(totalDeltaTween)).replace("-", "")}
               </div>
-              <div className="mt-2 text-xs text-white/60">
-                Based on your chosen baskets and USD exposure
-              </div>
+              <div className="mt-2 text-xs text-white/60">Based on your chosen baskets and USD exposure</div>
             </div>
           </div>
 
@@ -308,9 +282,7 @@ export default function ImpactMode({ latestRate }: Props) {
                   <div className="text-xs font-semibold text-white/60">IF USD/PHP MOVES BY</div>
                   <div className={cn("mt-1 text-lg font-extrabold", directionTone)}>
                     {fmtPct(movePct)}
-                    <span className="ml-2 text-xs font-semibold text-white/60">
-                      (current ~ ₱{latestRate.toFixed(3)})
-                    </span>
+                    <span className="ml-2 text-xs font-semibold text-white/60">(current ~ ₱{liveRate.toFixed(3)})</span>
                   </div>
                 </div>
 
@@ -322,9 +294,7 @@ export default function ImpactMode({ latestRate }: Props) {
                       onClick={() => setMovePct(p)}
                       className={cn(
                         "rounded-xl px-3 py-2 text-sm font-semibold ring-1 transition",
-                        movePct === p
-                          ? "bg-white/12 ring-white/25"
-                          : "bg-white/5 ring-white/10 hover:bg-white/10"
+                        movePct === p ? "bg-white/12 ring-white/25" : "bg-white/5 ring-white/10 hover:bg-white/10"
                       )}
                       aria-pressed={movePct === p}
                     >
@@ -350,31 +320,22 @@ export default function ImpactMode({ latestRate }: Props) {
                   className="mt-2 w-full accent-indigo-400"
                   aria-label="USD/PHP move percent"
                 />
-                <div className="mt-2 text-xs text-white/60">
-                  This simulates an FX move, it’s not a prediction.
-                </div>
+                <div className="mt-2 text-xs text-white/60">This simulates an FX move, it’s not a prediction.</div>
               </div>
 
               {/* impact meter */}
               <div className="mt-5 rounded-2xl border border-white/10 bg-[#070B18]/40 p-4">
                 <div className="flex items-center justify-between">
                   <div className="text-xs font-semibold text-white/60">IMPACT INTENSITY</div>
-                  <div className="text-xs font-semibold text-white/60">
-                    {Math.round(impactScore)} / 100
-                  </div>
+                  <div className="text-xs font-semibold text-white/60">{Math.round(impactScore)} / 100</div>
                 </div>
                 <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-white/10">
                   <div
-                    className={cn(
-                      "h-full rounded-full transition-all",
-                      movePct >= 0 ? "bg-rose-400/70" : "bg-emerald-400/70"
-                    )}
+                    className={cn("h-full rounded-full transition-all", movePct >= 0 ? "bg-rose-400/70" : "bg-emerald-400/70")}
                     style={{ width: `${impactScore}%` }}
                   />
                 </div>
-                <div className="mt-2 text-xs text-white/60">
-                  Higher means more of your basket is USD-sensitive.
-                </div>
+                <div className="mt-2 text-xs text-white/60">Higher means more of your basket is USD-sensitive.</div>
               </div>
             </div>
 
@@ -396,21 +357,19 @@ export default function ImpactMode({ latestRate }: Props) {
                 <div className="mt-4 rounded-xl border border-white/10 bg-[#070B18]/40 p-4">
                   <div className="text-xs font-semibold text-white/60">QUICK NOTE</div>
                   <div className="mt-2 text-sm leading-6 text-white/70">
-                    Positive means your basket costs more when USD strengthens.
-                    Negative means you benefit when PHP strengthens.
+                    Positive means your basket costs more when USD strengthens. Negative means you benefit when PHP strengthens.
                   </div>
                 </div>
               </div>
             </div>
           </div>
 
-          {/* ALWAYS VISIBLE: Spending + Why (no toggle) */}
+          {/* ALWAYS VISIBLE: Spending + Why */}
           <div className="mt-6 grid gap-4 lg:grid-cols-2">
             {/* spending editor */}
             <div className="rounded-2xl border border-white/10 bg-white/5 p-5">
               <div className="text-xs font-semibold text-white/60">SET YOUR SPENDING</div>
 
-              {/* NEW: plain-language exposure explanation */}
               <div className="mt-2 text-sm leading-6 text-white/70">
                 <span className="text-white font-semibold">What is “USD exposure”?</span>{" "}
                 It’s the part of this expense that usually follows the dollar (imports, USD pricing, card FX conversion).
@@ -422,10 +381,7 @@ export default function ImpactMode({ latestRate }: Props) {
                 {(Object.keys(buckets) as BucketKey[]).map((k) => {
                   const b = buckets[k];
                   return (
-                    <div
-                      key={b.key}
-                      className="rounded-xl border border-white/10 bg-white/3 p-3"
-                    >
+                    <div key={b.key} className="rounded-xl border border-white/10 bg-white/3 p-3">
                       <div className="flex items-center justify-between gap-3">
                         <div className="flex items-center gap-2">
                           <span className="text-lg">{b.emoji}</span>
@@ -435,10 +391,7 @@ export default function ImpactMode({ latestRate }: Props) {
                           </div>
                         </div>
                         <div className="text-xs text-white/60">
-                          USD exposure:{" "}
-                          <span className="font-semibold text-white">
-                            {Math.round(b.exposure * 100)}%
-                          </span>
+                          USD exposure: <span className="font-semibold text-white">{Math.round(b.exposure * 100)}%</span>
                         </div>
                       </div>
 
@@ -455,9 +408,7 @@ export default function ImpactMode({ latestRate }: Props) {
                         </label>
 
                         <label className="block">
-                          <div className="text-xs font-semibold text-white/60">
-                            USD exposure (0–100%)
-                          </div>
+                          <div className="text-xs font-semibold text-white/60">USD exposure (0–100%)</div>
                           <input
                             type="range"
                             min={0}
@@ -468,9 +419,7 @@ export default function ImpactMode({ latestRate }: Props) {
                             className="mt-3 w-full accent-indigo-400"
                             aria-label={`${b.title} exposure`}
                           />
-                          <div className="mt-1 text-[11px] text-white/60">
-                            0% = mostly local pricing • 100% = strongly USD-linked
-                          </div>
+                          <div className="mt-1 text-[11px] text-white/60">0% = mostly local pricing • 100% = strongly USD-linked</div>
                         </label>
                       </div>
                     </div>
@@ -511,15 +460,10 @@ export default function ImpactMode({ latestRate }: Props) {
                   const b = buckets[k];
                   const delta = results[k].delta;
                   const chip =
-                    delta >= 0
-                      ? "bg-rose-500/10 text-rose-100 ring-1 ring-rose-400/20"
-                      : "bg-emerald-500/10 text-emerald-100 ring-1 ring-emerald-400/20";
+                    delta >= 0 ? "bg-rose-500/10 text-rose-100 ring-1 ring-rose-400/20" : "bg-emerald-500/10 text-emerald-100 ring-1 ring-emerald-400/20";
 
                   return (
-                    <div
-                      key={k}
-                      className="rounded-2xl border border-white/10 bg-[#070B18]/35 p-4"
-                    >
+                    <div key={k} className="rounded-2xl border border-white/10 bg-[#070B18]/35 p-4">
                       <div className="flex items-start justify-between gap-3">
                         <div className="flex items-center gap-2">
                           <span className="text-lg">{b.emoji}</span>
@@ -535,9 +479,7 @@ export default function ImpactMode({ latestRate }: Props) {
                       </div>
 
                       <div className="mt-3 text-sm leading-6 text-white/70">{b.whatMoves}</div>
-                      <div className="mt-3 text-xs text-white/60">
-                        If this feels too aggressive, lower the USD exposure slider for this basket.
-                      </div>
+                      <div className="mt-3 text-xs text-white/60">If this feels too aggressive, lower the USD exposure slider for this basket.</div>
                     </div>
                   );
                 })}
@@ -545,7 +487,6 @@ export default function ImpactMode({ latestRate }: Props) {
             </div>
           </div>
 
-          {/* footer note */}
           <div className="mt-6 rounded-2xl border border-white/10 bg-white/5 p-4 text-xs text-white/60">
             Results are estimates to show effects of USD change. Checkout our Dashboard and Risk metrics to see more details!
           </div>
