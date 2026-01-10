@@ -36,7 +36,7 @@ export default function AppSidebar() {
 
   const NAV: NavItem[] = useMemo(
     () => [
-      { href: "/peso-pilot", label: "Dashboard", icon: <GridIcon /> },
+      { href: "/dashboard", label: "Dashboard", icon: <GridIcon /> },
       { href: "/impact", label: "Impact Simulator", icon: <SparkIcon /> },
       { href: "/alerts", label: "Alerts", icon: <BellIcon /> },
       { href: "/briefs", label: "FX Briefs", icon: <DocIcon /> },

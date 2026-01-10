@@ -86,7 +86,7 @@ export default async function HomePage() {
             </button>
 
             <Link
-              href="/peso-pilot"
+              href="/dashboard"
               className="inline-flex items-center gap-2 rounded-full bg-indigo-500 px-5 py-2.5 text-sm font-semibold hover:bg-indigo-400"
             >
               Open Dashboard <span aria-hidden>→</span>
@@ -117,7 +117,7 @@ export default async function HomePage() {
           <div className="mt-8 flex flex-wrap gap-3">
             {/* Unified Primary Button */}
             <Link
-              href="/peso-pilot"
+              href="/dashboard"
               className="
                 group relative inline-flex items-center gap-2 overflow-hidden rounded-xl
                 px-8 py-4 text-sm font-bold text-white
