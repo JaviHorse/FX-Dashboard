@@ -1240,7 +1240,7 @@ Operational Impact
           zIndex: 1,
         }}
       >
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 20, width: "100%", minWidth: 0 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 20, width: "100%", minWidth: 0, }}>
           <div>
             <h1
               style={{
@@ -1313,7 +1313,7 @@ Operational Impact
           </div>
 
           {/* Upper-right controls */}
-          <div style={{ display: "flex", gap: 12, alignItems: "center", maxWidth: "100%" }}>
+          <div style={{ display: "flex", gap: 12, alignItems: "center", maxWidth: "100%", width: "100%", minWidth: 0, justifyContent: "flex-end", }}>
             <div style={{ display: "flex", flexDirection: "column", gap: 10, alignItems: "flex-end", maxWidth: "100%" }}>
               {/* Date filter bar */}
               <div

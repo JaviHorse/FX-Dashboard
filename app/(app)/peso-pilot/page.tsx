@@ -27,7 +27,7 @@ export default async function PesoPilotPage() {
     where: {
       pair: "USD/PHP",
       source: "BSP",
-      date: { lte: cutoffUtc }, // ✅ was: new Date()
+      date: { lte: cutoffUtc },
     },
     orderBy: { date: "desc" },
     select: {
