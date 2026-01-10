@@ -44,9 +44,12 @@ export default function AppSidebar() {
     []
   );
 
-  const isActive = (href: string) => pathname === href;
+  const NAV_MOBILE: NavItem[] = useMemo(
+    () => [{ href: "/", label: "Home", icon: <HomeIcon /> }, ...NAV],
+    [NAV]
+  );
 
-  // Force a sane behavior on mobile (bottom bar should not be "collapsed")
+  const isActive = (href: string) => pathname === href;
   useEffect(() => {
     if (isMobile) setCollapsed(true);
   }, [isMobile]);
@@ -54,8 +57,6 @@ export default function AppSidebar() {
   /* =========================
      STYLES
      ========================= */
-
-  // Desktop shell (your original)
   const shellDesktop: React.CSSProperties = {
     position: "sticky",
     top: 18,
@@ -74,14 +75,14 @@ export default function AppSidebar() {
     backdropFilter: "blur(16px)",
   };
 
-  // Mobile shell (bottom bar)
+  // Mobile shell (bottom bar) — ✅ safe-area padding so nothing gets hidden by iPhone home indicator
   const shellMobile: React.CSSProperties = {
     position: "fixed",
     left: 12,
     right: 12,
     bottom: 12,
     height: 74,
-    padding: 10,
+    padding: "10px 10px calc(10px + env(safe-area-inset-bottom))",
     borderRadius: 26,
     background: "linear-gradient(180deg, rgba(11,16,32,0.92), rgba(9,14,26,0.92))",
     border: "1px solid rgba(255,255,255,0.10)",
@@ -350,7 +351,7 @@ export default function AppSidebar() {
 
       {/* Navigation */}
       <nav style={nav}>
-        {NAV.map((item) => {
+        {(isMobile ? NAV_MOBILE : NAV).map((item) => {
           const active = isActive(item.href);
 
           if (isMobile) {
