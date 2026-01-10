@@ -1240,7 +1240,7 @@ Operational Impact
           zIndex: 1,
         }}
       >
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 20 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 20, width: "100%", minWidth: 0 }}>
           <div>
             <h1
               style={{
