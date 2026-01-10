@@ -24,8 +24,6 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       >
         <main style={{ minWidth: 0 }}>
           {children}
-
-          {/* Mobile-only spacer so fixed bottom nav doesn't cover content */}
           <div className="pp-mobile-bottom-spacer" />
         </main>
       </div>

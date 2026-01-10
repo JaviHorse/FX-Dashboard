@@ -16,7 +16,6 @@ import {
 
 type ApiPoint = { date: string; rate: string | number };
 
-// --------- small UI helpers ----------
 function cn(...xs: Array<string | false | null | undefined>) {
   return xs.filter(Boolean).join(" ");
 }
@@ -46,7 +45,6 @@ function clamp(n: number, lo: number, hi: number) {
   return Math.max(lo, Math.min(hi, n));
 }
 
-// ----- severity + accents -----
 function severityStyles(sev: AlertSeverity) {
   switch (sev) {
     case "CRITICAL":
@@ -143,12 +141,11 @@ function MiniMetric({
         <div className="text-[11px] tracking-[0.18em] uppercase text-slate-400">{label}</div>
         {hint ? <span className="text-[11px] text-slate-400/80">{hint}</span> : null}
       </div>
-      <div className="mt-2 text-3xl font-semibold text-slate-100 tabular-nums">{value}</div>
+      <div className="mt-2 text-2xl sm:text-3xl font-semibold text-slate-100 tabular-nums">{value}</div>
     </div>
   );
 }
 
-/** FIXED Range UI + hover tooltip (shows full range when truncated) */
 function RangeMetric({ fromISO, toISO }: { fromISO: string | null; toISO: string | null }) {
   const has = Boolean(fromISO && toISO);
   const full = has ? `${fromISO} → ${toISO}` : "— → —";
@@ -158,7 +155,7 @@ function RangeMetric({ fromISO, toISO }: { fromISO: string | null; toISO: string
       <div className="text-[11px] tracking-[0.18em] uppercase text-slate-400">Range</div>
 
       {!has ? (
-        <div className="mt-2 text-3xl font-semibold text-slate-100">—</div>
+        <div className="mt-2 text-2xl sm:text-3xl font-semibold text-slate-100">—</div>
       ) : (
         <div className="mt-2 relative group">
           <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2">
@@ -205,7 +202,6 @@ function RangeMetric({ fromISO, toISO }: { fromISO: string | null; toISO: string
   );
 }
 
-// --------- robust response parsing ----------
 function extractPoints(data: any): ApiPoint[] {
   if (Array.isArray(data)) return data as ApiPoint[];
 
@@ -255,7 +251,6 @@ function zContext(z: number | null) {
   };
 }
 
-// UPDATED: make recent alerts useful + understandable (ONLY affects the 3 boxes)
 function explainRecent(a: AlertItem) {
   const rawWhat = (a.signal || a.title || "").trim();
   const rawWhy = (a.whyCare || "").trim();
@@ -316,7 +311,6 @@ function explainRecent(a: AlertItem) {
 
   return { what, why, action };
 }
-
 export default function AlertsPage() {
   const [points, setPoints] = useState<ApiPoint[]>([]);
   const [loading, setLoading] = useState(true);
@@ -330,9 +324,7 @@ export default function AlertsPage() {
     try {
       const raw = localStorage.getItem("pesopilot_alerts_firedAt");
       if (raw) setAlertMemory(JSON.parse(raw));
-    } catch {
-      // ignore
-    }
+    } catch {}
   }, []);
 
   useEffect(() => {
@@ -362,9 +354,7 @@ export default function AlertsPage() {
           setAlertMemory(nextPack.firedAt ?? {});
           try {
             localStorage.setItem("pesopilot_alerts_firedAt", nextFiredAtJSON);
-          } catch {
-            // ignore
-          }
+          } catch {}
         }
       } catch {
         if (!alive) return;
@@ -380,7 +370,6 @@ export default function AlertsPage() {
     return () => {
       alive = false;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const alerts: AlertItem[] = pack?.alerts ?? [];
@@ -396,7 +385,6 @@ export default function AlertsPage() {
   const series90 = pack?.series90 ?? [];
   const chartHeight = 240;
 
-  // ---- extra context derived from series ----
   const derived = useMemo(() => {
     const last = series90.length ? series90[series90.length - 1] : null;
     const lastRate = safeNum((last as any)?.rate);
@@ -441,22 +429,18 @@ export default function AlertsPage() {
 
   return (
     <div className="min-h-screen w-full bg-gradient-to-b from-[#070B18] via-[#0A1024] to-[#070B18] text-slate-100">
-      {/* subtle background glow accents */}
       <div className="pointer-events-none fixed inset-0 -z-10">
         <div className="absolute left-[-120px] top-[-120px] h-[380px] w-[380px] rounded-full bg-sky-500/10 blur-3xl" />
         <div className="absolute right-[-140px] top-[120px] h-[420px] w-[420px] rounded-full bg-fuchsia-500/10 blur-3xl" />
         <div className="absolute left-[20%] bottom-[-180px] h-[520px] w-[520px] rounded-full bg-emerald-500/8 blur-3xl" />
       </div>
 
-      <div className="mx-auto max-w-6xl px-6 py-10">
-        {/* header */}
-        <div className="flex items-start justify-between gap-6">
-          <div>
-            <div className="text-[11px] tracking-[0.28em] uppercase text-slate-400">
-              Pesopilot • Risk Alerts
-            </div>
+      <div className="mx-auto max-w-6xl px-4 sm:px-6 py-8 sm:py-10">
+        <div className="flex flex-col items-center text-center sm:text-left sm:items-start sm:flex-row sm:justify-between gap-4 sm:gap-6">
+          <div className="w-full sm:w-auto">
+            <div className="text-[11px] tracking-[0.28em] uppercase text-slate-400">Pesopilot • Risk Alerts</div>
 
-            <div className="mt-2 flex items-center gap-3">
+            <div className="mt-2 flex flex-col items-center sm:flex-row sm:items-center sm:justify-start gap-3">
               <div className="text-4xl font-semibold text-slate-100">Alerts</div>
               <span className="hidden sm:inline-flex items-center rounded-full bg-white/[0.06] px-3 py-1 text-xs ring-1 ring-white/10 text-slate-200">
                 <span className="mr-2 inline-block h-2 w-2 rounded-full bg-sky-300 animate-pulse" />
@@ -464,29 +448,28 @@ export default function AlertsPage() {
               </span>
             </div>
 
-            <div className="mt-2 max-w-2xl text-sm text-slate-300/90">
+            <div className="mt-2 max-w-2xl text-sm text-slate-300/90 mx-auto sm:mx-0">
               Built to trigger on meaningful shifts (risk jumps, unusual moves, stress build-ups) — not daily wiggles.
             </div>
           </div>
 
           <Link
             href="/peso-pilot"
-            className="inline-flex items-center gap-2 rounded-full bg-white/[0.06] px-4 py-2 text-sm text-slate-100 ring-1 ring-white/10 hover:bg-white/[0.10] transition"
+            className="inline-flex items-center justify-center gap-2 rounded-full bg-white/[0.06] px-4 py-2 text-sm text-slate-100 ring-1 ring-white/10 hover:bg-white/[0.10] transition w-full sm:w-auto"
           >
             ← Back to Dashboard
           </Link>
         </div>
 
-        {/* AT-A-GLANCE STRIP */}
-        <div className="mt-8 rounded-3xl bg-white/[0.04] ring-1 ring-white/10 p-6 shadow-[0_18px_60px_rgba(0,0,0,0.30)]">
+        <div className="mt-8 rounded-3xl bg-white/[0.04] ring-1 ring-white/10 p-5 sm:p-6 shadow-[0_18px_60px_rgba(0,0,0,0.30)]">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-            <div>
+            <div className="text-center lg:text-left">
               <div className="text-sm font-semibold text-slate-100">At a glance</div>
               <div className="mt-1 text-sm text-slate-300">
                 Updated: <span className="text-slate-100 font-semibold">{updatedAt}</span>
               </div>
 
-              <div className="mt-3 flex flex-wrap items-center gap-2">
+              <div className="mt-3 flex flex-wrap items-center justify-center lg:justify-start gap-2">
                 <span className="inline-flex items-center gap-2 rounded-full bg-white/[0.05] px-3 py-1 text-xs ring-1 ring-white/10 text-slate-200">
                   <span className="h-2 w-2 rounded-full bg-emerald-300" />
                   Latest <span className="font-semibold text-slate-100">{latestRateStr}</span>
@@ -524,7 +507,7 @@ export default function AlertsPage() {
               </div>
             </div>
 
-            <div className="grid gap-3 sm:grid-cols-3 lg:w-[520px]">
+            <div className="grid gap-3 sm:grid-cols-3 lg:w-[520px] w-full">
               <MiniMetric
                 label="90D move"
                 value={fmt3(derived.delta)}
@@ -543,7 +526,7 @@ export default function AlertsPage() {
 
           <div
             className={cn(
-              "mt-4 rounded-2xl p-4 ring-1 text-sm",
+              "mt-4 rounded-2xl p-4 ring-1 text-sm text-center lg:text-left",
               ctx.tone === "good"
                 ? "bg-emerald-500/10 ring-emerald-400/20 text-emerald-100"
                 : ctx.tone === "info"
@@ -559,7 +542,6 @@ export default function AlertsPage() {
           </div>
         </div>
 
-        {/* quick guidance cards */}
         <div className="mt-6 grid gap-4 md:grid-cols-3">
           <div className="rounded-2xl bg-white/[0.04] p-4 ring-1 ring-white/10 relative overflow-hidden">
             <div className="absolute inset-0 bg-gradient-to-br from-sky-500/10 via-transparent to-transparent" />
@@ -595,9 +577,8 @@ export default function AlertsPage() {
         </div>
 
         <div className="mt-6 grid gap-6 lg:grid-cols-[1.55fr_1fr]">
-          {/* LEFT: Alert feed */}
-          <div className="rounded-3xl bg-white/[0.04] p-6 ring-1 ring-white/10">
-            <div className="flex items-start justify-between gap-4">
+          <div className="rounded-3xl bg-white/[0.04] p-5 sm:p-6 ring-1 ring-white/10 w-full max-w-3xl mx-auto lg:max-w-none">
+            <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 sm:gap-4 text-center sm:text-left">
               <div>
                 <div className="text-xl font-semibold text-slate-100">Alert Feed</div>
                 <div className="mt-1 text-sm text-slate-300">
@@ -607,7 +588,7 @@ export default function AlertsPage() {
                 </div>
               </div>
 
-              <div className="text-right">
+              <div className="sm:text-right">
                 <div className="text-[11px] tracking-[0.18em] uppercase text-slate-400">Updated</div>
                 <div className="mt-1 text-xs text-slate-300">{updatedAt}</div>
               </div>
@@ -616,7 +597,7 @@ export default function AlertsPage() {
             <div className="mt-5 space-y-4">
               {loading && (
                 <div className="rounded-2xl bg-white/[0.03] p-5 ring-1 ring-white/10">
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-center justify-center sm:justify-start gap-3">
                     <span className="inline-flex h-2.5 w-2.5 animate-pulse rounded-full bg-sky-300" />
                     <div className="text-sm text-slate-200">Scanning signals…</div>
                   </div>
@@ -625,7 +606,7 @@ export default function AlertsPage() {
 
               {allClear && (
                 <div className="rounded-3xl bg-emerald-500/10 p-5 ring-1 ring-emerald-400/20 shadow-[0_18px_60px_rgba(0,0,0,0.30)]">
-                  <div className="flex items-start justify-between gap-4">
+                  <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 sm:gap-4 text-center sm:text-left">
                     <div>
                       <div className="text-sm font-semibold text-emerald-100">
                         All clear (no thresholds crossed)
@@ -635,7 +616,7 @@ export default function AlertsPage() {
                         need action, check exposures or set tighter internal limits and not your FX feed.
                       </div>
                     </div>
-                    <span className="inline-flex items-center rounded-full bg-emerald-400/15 px-3 py-1 text-xs ring-1 ring-emerald-400/25 text-emerald-100">
+                    <span className="inline-flex items-center justify-center rounded-full bg-emerald-400/15 px-3 py-1 text-xs ring-1 ring-emerald-400/25 text-emerald-100">
                       NORMAL
                     </span>
                   </div>
@@ -658,15 +639,17 @@ export default function AlertsPage() {
                       <div className={cn("absolute inset-0 opacity-[0.70] bg-gradient-to-br", s.accent)} />
 
                       <div className="relative">
-                        <div className="flex items-start justify-between gap-4">
-                          <div className="flex items-center gap-3">
+                        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 sm:gap-4">
+                          <div className="flex items-center justify-center sm:justify-start gap-3 text-center sm:text-left">
                             <span className={cn("rounded-full px-3 py-1 text-xs font-semibold", s.pill)}>
                               {a.severity}
                             </span>
                             <div className="text-base font-semibold text-slate-100">{a.title}</div>
                           </div>
 
-                          <div className="text-xs text-slate-200/80">{mounted ? fmtLocal(a.timestampISO) : ""}</div>
+                          <div className="text-xs text-slate-200/80 text-center sm:text-right">
+                            {mounted ? fmtLocal(a.timestampISO) : ""}
+                          </div>
                         </div>
 
                         <div className="mt-4 grid gap-4 md:grid-cols-3">
@@ -709,9 +692,8 @@ export default function AlertsPage() {
               </ul>
             </div>
 
-            {/* Recent alerts (latest 3) under Severity guide */}
             <div className="mt-6 rounded-3xl bg-white/[0.03] p-5 ring-1 ring-white/10">
-              <div className="flex items-start justify-between gap-4">
+              <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 sm:gap-4 text-center sm:text-left">
                 <div>
                   <div className="text-sm font-semibold text-slate-100">Recent alerts (latest 3)</div>
                   <div className="mt-1 text-xs text-slate-300">
@@ -719,7 +701,7 @@ export default function AlertsPage() {
                   </div>
                 </div>
 
-                <span className="rounded-full bg-white/[0.06] px-3 py-1 text-xs text-slate-200 ring-1 ring-white/10">
+                <span className="rounded-full bg-white/[0.06] px-3 py-1 text-xs text-slate-200 ring-1 ring-white/10 inline-flex justify-center">
                   {loading ? "…" : `${alerts.slice(0, 3).length} shown`}
                 </span>
               </div>
@@ -749,7 +731,9 @@ export default function AlertsPage() {
                             </span>
                             <div className="min-w-0">
                               <div className="text-sm font-semibold text-slate-100 truncate">{a.title}</div>
-                              <div className="mt-1 text-xs text-slate-300">{mounted ? fmtLocal(a.timestampISO) : ""}</div>
+                              <div className="mt-1 text-xs text-slate-300">
+                                {mounted ? fmtLocal(a.timestampISO) : ""}
+                              </div>
                             </div>
                           </div>
                         </div>
@@ -777,17 +761,18 @@ export default function AlertsPage() {
             </div>
           </div>
 
-          {/* RIGHT: status + chart */}
-          <div className="space-y-6">
-            <div className="rounded-3xl bg-white/[0.04] p-6 ring-1 ring-white/10">
-              <div className="flex items-start justify-between gap-4">
+          <div className="space-y-6 w-full max-w-3xl mx-auto lg:max-w-none">
+            <div className="rounded-3xl bg-white/[0.04] p-5 sm:p-6 ring-1 ring-white/10 text-center sm:text-left">
+              <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 sm:gap-4">
                 <div>
                   <div className="text-xl font-semibold text-slate-100">System status</div>
                   <div className="mt-1 text-sm text-slate-300">
                     Data checks first. Signals go live only when history is sufficient.
                   </div>
                 </div>
-                <StatusPill status={status} />
+                <div className="flex justify-center sm:justify-end">
+                  <StatusPill status={status} />
+                </div>
               </div>
 
               <div className="mt-5 grid gap-4 sm:grid-cols-3">
@@ -798,7 +783,7 @@ export default function AlertsPage() {
 
               <div
                 className={cn(
-                  "mt-4 rounded-2xl p-4 ring-1 text-sm",
+                  "mt-4 rounded-2xl p-4 ring-1 text-sm text-center sm:text-left",
                   status === "LIVE"
                     ? "bg-emerald-500/10 ring-emerald-400/20 text-emerald-100"
                     : "bg-amber-500/10 ring-amber-400/20 text-amber-100"
@@ -808,8 +793,8 @@ export default function AlertsPage() {
               </div>
             </div>
 
-            <div className="rounded-3xl bg-white/[0.04] p-6 ring-1 ring-white/10">
-              <div className="flex items-start justify-between">
+            <div className="rounded-3xl bg-white/[0.04] p-5 sm:p-6 ring-1 ring-white/10 text-center sm:text-left">
+              <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 sm:gap-4">
                 <div>
                   <div className="text-base font-semibold text-slate-100">Market context</div>
                   <div className="mt-1 text-sm text-slate-300">
@@ -817,11 +802,15 @@ export default function AlertsPage() {
                   </div>
                 </div>
 
-                <div className="text-right">
-                  <div className="text-[11px] tracking-[0.18em] uppercase text-slate-400">Latest</div>
-                  <div className="mt-1 text-sm font-semibold text-slate-100">{latestRateStr}</div>
-                  <div className="mt-2 text-[11px] tracking-[0.18em] uppercase text-slate-400">Z-score</div>
-                  <div className="mt-1 text-sm font-semibold text-slate-100">{zStr}</div>
+                <div className="flex flex-row justify-center sm:block sm:text-right gap-6">
+                  <div>
+                    <div className="text-[11px] tracking-[0.18em] uppercase text-slate-400">Latest</div>
+                    <div className="mt-1 text-sm font-semibold text-slate-100">{latestRateStr}</div>
+                  </div>
+                  <div>
+                    <div className="text-[11px] tracking-[0.18em] uppercase text-slate-400">Z-score</div>
+                    <div className="mt-1 text-sm font-semibold text-slate-100">{zStr}</div>
+                  </div>
                 </div>
               </div>
 
@@ -884,7 +873,7 @@ export default function AlertsPage() {
                   </ResponsiveContainer>
                 </div>
 
-                <div className="mt-3 grid gap-2 text-xs text-slate-300 sm:grid-cols-2">
+                <div className="mt-3 grid gap-2 text-xs text-slate-300 sm:grid-cols-2 text-center sm:text-left">
                   <div>• Dashed gray = average (mean)</div>
                   <div>• Blue dashed = ±1σ (typical range)</div>
                   <div>• Pink dashed = ±2σ (unusual territory)</div>
@@ -892,7 +881,7 @@ export default function AlertsPage() {
                 </div>
               </div>
 
-              <div className="mt-4 rounded-2xl bg-white/[0.03] p-4 ring-1 ring-white/10 text-sm text-slate-200">
+              <div className="mt-4 rounded-2xl bg-white/[0.03] p-4 ring-1 ring-white/10 text-sm text-slate-200 text-center sm:text-left">
                 <span className="font-semibold text-slate-100">Practical read:</span> If price lives inside ±1σ, alerts
                 should be quiet. When it pushes toward ±2σ, that’s when this page becomes action-heavy.
               </div>
