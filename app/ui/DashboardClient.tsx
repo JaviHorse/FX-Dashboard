@@ -1,6 +1,3 @@
-// =========================
-// PART 1 / 5
-// =========================
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
