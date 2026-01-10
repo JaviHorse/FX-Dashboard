@@ -431,8 +431,6 @@ export default function DashboardClient({ latest }: Props) {
 
     // Subtle “professional” glow: blue for neutral, green/red only if trend
     const glow = trend > 0 ? theme.danger : trend < 0 ? theme.success : theme.primary;
-
-    // ✅ SAFE: responsive typography + spacing so nothing “cuts” on mobile
     const titleSize = isMobile ? 10 : 11;
     const valueSize = isMobile ? 22 : 28;
     const subSize = isMobile ? 12 : 13;
@@ -451,12 +449,11 @@ export default function DashboardClient({ latest }: Props) {
 
           position: "relative",
           overflow: "hidden",
+          minHeight: 140, 
           border: `1px solid ${theme.border}`,
           boxShadow: isDark
             ? `0 16px 40px -26px rgba(0,0,0,0.85), 0 0 0 1px rgba(255,255,255,0.05)`
             : `0 14px 34px -26px rgba(15,23,42,0.22), 0 0 0 1px rgba(15,23,42,0.06)`,
-
-          // ✅ prevents any child from forcing width overflow inside grid
           minWidth: 0,
         }}
       >
@@ -1488,7 +1485,7 @@ Operational Impact
           style={{
             display: "grid",
             gap: isMobile ? 14 : 20,
-            gridTemplateColumns: isMobile ? "repeat(auto-fit, minmax(145px, 1fr))" : "repeat(auto-fit, minmax(160px, 1fr))",
+            gridTemplateColumns: isMobile ? "repeat(auto-fit, minmax(180px, 1fr))" : "repeat(auto-fit, minmax(220px, 1fr))",
             minWidth: 0,
           }}
         >
