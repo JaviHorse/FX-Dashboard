@@ -230,19 +230,19 @@ function zContext(z: number | null) {
     return {
       label: "Extreme move",
       tone: "bad" as const,
-      blurb: "Price is far from its recent norm → treat as high attention.",
+      blurb: "Price is far from its recent norm: treat as high attention.",
     };
   if (az >= 1.25)
     return {
       label: "Stretched",
       tone: "warn" as const,
-      blurb: "Price is noticeably away from the average → review exposures today.",
+      blurb: "Price is noticeably away from the average: review exposures today.",
     };
   if (az >= 0.6)
     return {
       label: "Leaning",
       tone: "info" as const,
-      blurb: "A mild drift away from the mean → keep an eye on direction.",
+      blurb: "A mild drift away from the mean: keep an eye on direction.",
     };
   return {
     label: "Near average",
@@ -449,7 +449,7 @@ export default function AlertsPage() {
             </div>
 
             <div className="mt-2 max-w-2xl text-sm text-slate-300/90 mx-auto sm:mx-0">
-              Built to trigger on meaningful shifts (risk jumps, unusual moves, stress build-ups) — not daily wiggles.
+              Alerts activate on material FX moves such as risk spikes or atypical market shifts, not routine daily changes. 
             </div>
           </div>
 
@@ -548,7 +548,7 @@ export default function AlertsPage() {
             <div className="relative">
               <div className="text-[11px] tracking-[0.18em] uppercase text-slate-400">What this is</div>
               <div className="mt-2 text-sm text-slate-200">
-                Risk signals, not headlines. Alerts fire only when behavior shifts meaningfully.
+                This page flags unusual USD/PHP moves. Normal day-to-day changes are ignored
               </div>
             </div>
           </div>
@@ -558,8 +558,7 @@ export default function AlertsPage() {
             <div className="relative">
               <div className="text-[11px] tracking-[0.18em] uppercase text-slate-400">How to use it</div>
               <div className="mt-2 text-sm text-slate-200">
-                Decide what to do today. Every alert ends with a single{" "}
-                <span className="text-slate-100 font-semibold">next step</span>.
+                If there’s an alert, read it and act. If there isn’t, you can ignore this page.
               </div>
             </div>
           </div>
@@ -569,7 +568,7 @@ export default function AlertsPage() {
             <div className="relative">
               <div className="text-[11px] tracking-[0.18em] uppercase text-slate-400">Noise control</div>
               <div className="mt-2 text-sm text-slate-200">
-                Cooldowns prevent spam. If nothing changed, you’ll see{" "}
+                Alerts won’t repeat unless something new happens. If conditions stay the same, you’ll see{" "}
                 <span className="text-slate-100 font-semibold">All clear</span>.
               </div>
             </div>
@@ -688,7 +687,6 @@ export default function AlertsPage() {
                 <li>
                   <span className="font-semibold text-slate-100">WATCH</span> = early warning (monitor closely).
                 </li>
-                <li className="text-slate-300">Cooldowns prevent spam: alerts won’t re-fire every refresh.</li>
               </ul>
             </div>
 
@@ -882,8 +880,7 @@ export default function AlertsPage() {
               </div>
 
               <div className="mt-4 rounded-2xl bg-white/[0.03] p-4 ring-1 ring-white/10 text-sm text-slate-200 text-center sm:text-left">
-                <span className="font-semibold text-slate-100">Practical read:</span> If price lives inside ±1σ, alerts
-                should be quiet. When it pushes toward ±2σ, that’s when this page becomes action-heavy.
+                <span className="font-semibold text-slate-100">Practical read:</span> When the exchange rate stays within the typical range (±1σ), alerts remain minimal. When it goes past the unusual territory(±2σ), it indicates elevated FX risk and triggers alerts.
               </div>
             </div>
           </div>
