@@ -70,10 +70,10 @@ function severityStyles(sev: AlertSeverity) {
       };
     default:
       return {
-        pill: "bg-slate-500/12 text-slate-200 ring-1 ring-slate-400/25",
-        glow: "shadow-[0_0_0_1px_rgba(148,163,184,0.14),0_18px_50px_rgba(0,0,0,0.28)]",
-        accent: "from-slate-300/40 to-slate-600/20",
-        accentLine: "bg-gradient-to-b from-slate-200 to-slate-400",
+        pill: "bg-emerald-500/12 text-emerald-200 ring-1 ring-emerald-400/35",
+        glow: "shadow-[0_0_0_1px_rgba(52,211,153,0.14),0_18px_50px_rgba(0,0,0,0.28)]",
+        accent: "from-emerald-300/55 to-emerald-600/20",
+        accentLine: "bg-gradient-to-b from-emerald-200 to-emerald-400",
       };
   }
 }
