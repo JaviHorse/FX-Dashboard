@@ -19,9 +19,6 @@ import {
 
 type Props = { latest: LatestRate };
 
-// ========================================
-// SMALL HOOK: Mobile width detector (SAFE)
-// ========================================
 function useIsMobile(breakpointPx = 520) {
   const [isMobile, setIsMobile] = useState(false);
 
@@ -45,9 +42,9 @@ function useIsMobile(breakpointPx = 520) {
   return isMobile;
 }
 
-// ========================================
-// CUSTOM HOOK: Animated Number Tick-Up
-// ========================================
+// =======================
+// Animated Number Tick-Up
+// =======================
 function useAnimatedNumber(target: number, duration = 800) {
   const [current, setCurrent] = useState(target);
   const [prevTarget, setPrevTarget] = useState(target);
@@ -599,34 +596,34 @@ export default function DashboardClient({ latest }: Props) {
   // ========================================
   // Narrative Header + Dropdown Modules — text EXACT as given
   // ========================================
-  const CORE_NARRATIVE_LOW = `Low Volatility Regime - Core Narrative (<8%)
+  const CORE_NARRATIVE_LOW = `Low Volatility Regime (<8%)
 Interpretation
- PHP/USD is trading within a relatively narrow range, indicating subdued short-term price fluctuations and stable market conditions. This environment often reflects balanced FX flows and limited near-term shocks, allowing currency movements to be more predictable than usual.`;
+ PHP/USD is trading within a relatively narrow range. It shows subdued short-term price fluctuations and stable market conditions. This environment often reflects balanced FX flows and limited near-term shocks, allowing currency movements to be more predictable than usual.`;
 
-  const CORE_NARRATIVE_NORMAL = `Normal Volatility Regime - Core Narrative (8<=15%)
+  const CORE_NARRATIVE_NORMAL = `Normal Volatility Regime (8-15%)
 Interpretation
- PHP/USD volatility is within its typical historical range, reflecting routine market adjustments to macroeconomic data and policy signals.  Price movements remain active but orderly, consistent with standard FX market functioning.`;
+ PHP/USD volatility is within its typical historical range. This reflects routine market adjustments to macroeconomic data and policy signals. Price movements remain active but orderly, consistent with standard FX market functioning.`;
 
-  const CORE_NARRATIVE_HIGH = `High Volatility Regime - Core Narrative (15%>)
+  const CORE_NARRATIVE_HIGH = `High Volatility Regime (>15%)
 Interpretation
- PHP/USD is experiencing elevated price swings, signaling heightened uncertainty and increased sensitivity to economic, policy, or external developments. Short-term exchange rate movements are less stable, increasing the risk of abrupt and unfavorable currency shifts.`;
+  PHP/USD is experiencing elevated price swings. This signals heightened uncertainty and increased sensitivity to economic, policy, or external developments. Short-term exchange rate movements are less stable, increasing the risk of abrupt and unfavorable currency shifts.`;
 
   const RISK_EXPOSURE_LOW = `Low Volatility — Risk & Exposure
 Risk Implications
  FX exposure tends to be more stable in this regime, with lower day-to-day valuation swings and reduced likelihood of sharp currency shocks.
-Decision Context
+Risk Management Implications
 Forecasting errors are generally smaller, supporting longer planning horizons.`;
 
   const RISK_EXPOSURE_NORMAL = `Normal Volatility — Risk & Exposure
 Risk Implications
  FX exposure reflects typical market risk, with manageable fluctuations that are broadly consistent with historical patterns.
-Decision Context
+Risk Management Implications
  Standard risk limits and scenario assumptions are usually appropriate in this environment.`;
 
   const RISK_EXPOSURE_HIGH = `High Volatility — Risk & Exposure
 Risk Implications
  FX exposure becomes more sensitive to short-term movements, increasing the probability of adverse currency outcomes over short horizons.
-Decision Context
+Risk Management Implications
  Forecast uncertainty rises, and stress scenarios gain greater relevance.`;
 
   const HEDGING_TREASURY_LOW = `Low Volatility — Hedging & Treasury
@@ -685,12 +682,7 @@ Operational Impact
     HEDGING_TREASURY_NORMAL,
     HEDGING_TREASURY_HIGH,
   ]);
-// =========================
-// PART 3 / 5
-// =========================
-  // ========================================
-  // Narrative UI Helpers (SAFE: display-only)
-  // ========================================
+
   function splitFirstLine(text: string) {
     const idx = text.indexOf("\n");
     if (idx === -1) return { first: text, rest: "" };
@@ -700,7 +692,7 @@ Operational Impact
   const highlightHeaders = new Set([
     "Interpretation",
     "Risk Implications",
-    "Decision Context",
+    "Risk Management Implications",
     "Treasury Considerations",
     "Operational Impact",
   ]);
@@ -845,69 +837,80 @@ Operational Impact
     );
   }
 
-  function StyledSelect({
-    value,
-    onChange,
-    theme,
-    isDark,
-    children,
-  }: {
-    value: string;
-    onChange: (v: string) => void;
-    theme: any;
-    isDark: boolean;
-    children: React.ReactNode;
-  }) {
-    return (
-      <div
+function StyledSelect({
+  value,
+  onChange,
+  theme,
+  isDark,
+  children,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  theme: any;
+  isDark: boolean;
+  children: React.ReactNode;
+}) {
+  return (
+    <div style={{ position: "relative" }}>
+      <select
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
         style={{
-          position: "relative",
+          appearance: "none",
+          WebkitAppearance: "none",
+          MozAppearance: "none",
+          width: "100%",
           borderRadius: 14,
-          padding: 1,
-          background: isDark
-            ? "linear-gradient(135deg, rgba(29,78,216,0.20), rgba(15,118,110,0.10))"
-            : "linear-gradient(135deg, rgba(29,78,216,0.14), rgba(15,118,110,0.08))",
+          padding: "11px 44px 11px 14px",
+          border: `1px solid ${isDark ? "rgba(255,255,255,0.14)" : "rgba(15,23,42,0.14)"}`,
+          background: isDark ? "rgba(255,255,255,0.06)" : "rgba(255,255,255,0.90)",
+          color: theme.text,
+          fontSize: 13,
+          fontWeight: 850,
+          outline: "none",
+          cursor: "pointer",
+          boxShadow: isDark
+            ? "0 10px 22px -18px rgba(0,0,0,0.75)"
+            : "0 10px 22px -18px rgba(15,23,42,0.22)",
         }}
       >
-        <select
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          style={{
-            appearance: "none",
-            WebkitAppearance: "none",
-            MozAppearance: "none",
-            width: "100%",
-            borderRadius: 13,
-            padding: "10px 42px 10px 14px",
-            border: `1px solid ${theme.border}`,
-            background: theme.card,
-            color: theme.text,
-            fontSize: 13,
-            fontWeight: 850,
-            outline: "none",
-            cursor: "pointer",
-          }}
-        >
-          {children}
-        </select>
+        {children}
+      </select>
 
+      {/* right affordance: divider + chevron */}
+      <div
+        style={{
+          position: "absolute",
+          right: 12,
+          top: "50%",
+          transform: "translateY(-50%)",
+          pointerEvents: "none",
+          display: "flex",
+          alignItems: "center",
+          gap: 10,
+          color: isDark ? "rgba(231,238,249,0.70)" : "rgba(15,23,42,0.55)",
+        }}
+      >
         <div
           style={{
-            position: "absolute",
-            right: 14,
-            top: "50%",
-            transform: "translateY(-50%)",
-            pointerEvents: "none",
-            color: theme.textMuted,
-            fontWeight: 900,
-            fontSize: 14,
+            width: 1,
+            height: 18,
+            background: isDark ? "rgba(255,255,255,0.14)" : "rgba(15,23,42,0.12)",
           }}
-        >
-          ▾
-        </div>
+        />
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+          <path
+            d="M7 10l5 5 5-5"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        </svg>
       </div>
-    );
-  }
+    </div>
+  );
+}
 
   // ========================================
   // CONFIDENCE BANDS DATA (30D FAN CHART)
@@ -1707,12 +1710,22 @@ Operational Impact
                   </div>
                 </div>
 
-                <div style={{ width: 280, maxWidth: "100%" }}>
-                  <StyledSelect value={narrativeSelection} onChange={(v) => setNarrativeSelection(v as any)} theme={theme} isDark={isDark}>
-                    <option value="Risk & Exposure Implications">Risk & Exposure Implications</option>
-                    <option value="Hedging & Treasury Behavior">Hedging & Treasury Behavior</option>
-                  </StyledSelect>
-                </div>
+                <div style={{ width: 300, maxWidth: "100%" }}>
+            <StyledSelect
+              value={narrativeSelection}
+              onChange={(v) => setNarrativeSelection(v as any)}
+              theme={theme}
+              isDark={isDark}
+            >
+              <option style={{ background: "#0b1220", color: "#ffffff" }} value="Risk & Exposure Implications">
+                Risk & Exposure Implications
+              </option>
+              <option style={{ background: "#0b1220", color: "#ffffff" }} value="Hedging & Treasury Behavior">
+                Hedging & Treasury Behavior
+              </option>
+            </StyledSelect>
+          </div>
+
               </div>
 
               <div style={{ marginTop: 16, flex: 1 }}>
@@ -1779,7 +1792,7 @@ Operational Impact
         {/* FX Outlook */}
         <div style={{ display: "grid", gap: 14 }}>
           <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
-            <div style={{ fontWeight: 950, letterSpacing: -0.5, fontSize: 16 }}>FX Outlook (30D Confidence Bands)</div>
+            <div style={{ fontWeight: 950, letterSpacing: -0.5, fontSize: 16 }}>FX Outlook - Confindence Bands</div>
             <div style={{ fontSize: 12, color: theme.textMuted, fontWeight: 750 }}>
               Volatility-driven envelope • 50% / 75% / 95%
             </div>
@@ -1787,8 +1800,7 @@ Operational Impact
 
           <div style={{ ...cardStyle, padding: 20 }}>
             <div style={{ fontSize: 13, color: theme.textMuted, fontWeight: 750, marginBottom: 10 }}>
-              Shaded bands show a probabilistic range of USD/PHP outcomes over the next 30 days based on the current volatility
-              regime (annualized) from your selected window.
+              Shaded bands show a probabilistic range of USD/PHP outcomes over the selected days, based on the current annualized volatility regime calculated from the selected window.
             </div>
 
             {!fanAnnualVol ? (
@@ -1851,7 +1863,7 @@ Operational Impact
                 </div>
 
                 <div style={{ marginTop: 10, fontSize: 12, color: theme.textMuted, fontWeight: 750, lineHeight: 1.35 }}>
-                  Interpretation: The fan widens over time because uncertainty scales with √t. This is a volatility-driven envelope (not a fundamental macro forecast).
+                  Interpretation: The shaded area shows how uncertainty increases over time. Bands are derived from observed market volatility and are not meant to predict specific macroeconomic outcomes.
                 </div>
               </>
             )}
@@ -2079,12 +2091,12 @@ Operational Impact
 
           <div style={{ ...cardStyle, padding: 20 }}>
             <div style={{ fontSize: 13, color: theme.textMuted, fontWeight: 750, marginBottom: 10 }}>
-              This curve visualizes how your estimated PHP P/L changes as USD/PHP moves. The vertical marker shows your current selected shock.
+              This curve visualizes how your estimated PHP Profit-Loss statement changes as USD/PHP moves. The vertical marker shows your current selected shock.
             </div>
 
             <div style={{ height: 280, width: "100%" }}>
               <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={sensitivityData} margin={{ top: 10, right: 20, bottom: 0, left: 0 }}>
+                <LineChart data={sensitivityData} margin={{ top: 10, right: 20, bottom: 26, left: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={theme.grid} />
 
                   <XAxis

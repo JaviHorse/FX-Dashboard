@@ -76,15 +76,6 @@ export default async function HomePage() {
           </div>
 
           <div className="flex items-center gap-3">
-            <button
-              type="button"
-              className="grid h-10 w-10 place-items-center rounded-full bg-white/5 ring-1 ring-white/10 hover:bg-white/10"
-              aria-label="Theme"
-              title="Theme"
-            >
-              🌙
-            </button>
-
             <Link
               href="/dashboard"
               className="inline-flex items-center gap-2 rounded-full bg-indigo-500 px-5 py-2.5 text-sm font-semibold hover:bg-indigo-400"
@@ -109,9 +100,15 @@ export default async function HomePage() {
             Trade the Peso with <br /> risk-first clarity.
           </h1>
 
-          <p className="mt-5 max-w-2xl text-sm leading-6 text-white/70">
-            Peso Pilot reframes USD/PHP from a price series into a risk distribution.
-            It identifies volatility regimes, quantifies downside risk and drawdowns, and produces a volatility-scaled 30-day outlook. Scenario and sensitivity analysis translate FX moves directly into exposure-level P/L impact.
+          <p className="mt-5 max-w-2xl text-sm leading-6 text-white/70 text-justify">
+            PesoPilot analyzes USD/PHP using official BSP data to provide a structured view of peso risk over time.
+            It measures volatility, drawdowns, and regime shifts to distinguish normal market movement from periods of elevated stress.
+            By translating these patterns into forward-looking ranges and real-world cost impacts, PesoPilot shows how potential
+            peso/dollar moves could affect everyday expenses and exposures.
+          </p>
+
+          <p className="mt-4 max-w-2xl text-sm font-medium text-white/80 text-justify">
+            The focus is not prediction, but clarity around uncertainty and downside risk.
           </p>
 
           <div className="mt-8 flex flex-wrap gap-3">
