@@ -140,20 +140,20 @@ function computeHedgeReadiness(regime: Regime, behavior?: FxBehavior | null) {
       return {
         readiness: "HIGH" as HedgeReadiness,
         explanation:
-          "Volatility is elevated and price action is directionally biased with sizable swings. Consider tighter monitoring, faster decision cycles, and higher hedge urgency for open USD exposures.",
+          "High volatility with clear directional moves. Monitor closely and hedge USD exposures promptly. Review exposure levels frequently and adjust hedges as needed.",
       };
     }
     if (b === "CHOPPY") {
       return {
         readiness: "HIGH" as HedgeReadiness,
         explanation:
-          "Volatility is elevated with uneven price swings. Timing risk is high; consider earlier execution windows and stronger hedge readiness for near-term USD flows.",
+          "High volatility with uneven swings. Act sooner and keep hedge readiness high for near-term flows. Focus on near-term cash flows and stay alert to market reversals",
       };
     }
     return {
       readiness: "HIGH" as HedgeReadiness,
       explanation:
-        "Volatility is elevated. Even without a strong directional signal, short-term FX outcomes are less predictable; hedge readiness should be high.",
+        "High volatility. Short-term FX outcomes are uncertain. There is a need to maintain strong hedge readiness. Ensure monitoring and risk controls are consistently applied.",
     };
   }
 
@@ -162,20 +162,20 @@ function computeHedgeReadiness(regime: Regime, behavior?: FxBehavior | null) {
       return {
         readiness: "MEDIUM" as HedgeReadiness,
         explanation:
-          "Volatility is within normal bounds, but price action shows a directional bias. Consider moderate hedge readiness and review exposure timing for USD-linked transactions.",
+          "Normal volatility with directional bias. Maintain moderate hedge readiness and review timing of exposures. Check hedges periodically and align with your standard risk policy.",
       };
     }
     if (b === "CHOPPY") {
       return {
         readiness: "MEDIUM" as HedgeReadiness,
         explanation:
-          "Volatility is typical, but movements are choppy with frequent reversals. Timing risk increases; hedge readiness should be medium with disciplined execution windows.",
+          "Normal volatility with choppy moves. Keep medium hedge readiness and follow standard execution practices. Monitor for unusual moves that may require short-term adjustments.",
       };
     }
     return {
       readiness: "LOW" as HedgeReadiness,
       explanation:
-        "Volatility is typical and price action appears contained. Hedge readiness can remain low-to-standard, with routine monitoring and policy-aligned coverage.",
+        "Volatility is typical. Routine monitoring and standard hedge coverage are sufficient. Maintain regular oversight and ensure hedging policies are followed.",
     };
   }
 
@@ -183,7 +183,7 @@ function computeHedgeReadiness(regime: Regime, behavior?: FxBehavior | null) {
     return {
       readiness: "MEDIUM" as HedgeReadiness,
       explanation:
-        "Volatility is subdued, but price action shows a directional bias. Consider medium hedge readiness for exposures sensitive to continued drift.",
+        "Low volatility with directional bias. Consider medium hedge readiness for sensitive exposures. Monitor exposures periodically to capture any unexpected shifts.",
     };
   }
 
@@ -191,14 +191,14 @@ function computeHedgeReadiness(regime: Regime, behavior?: FxBehavior | null) {
     return {
       readiness: "MEDIUM" as HedgeReadiness,
       explanation:
-        "Volatility is subdued, but price swings are uneven with reversals. Timing risk can still matter; keep medium hedge readiness for near-term USD flows.",
+        "Low volatility with uneven swings. Keep medium readiness for near-term USD flows. Continue standard monitoring and prepare for potential short-term fluctuations.",
     };
   }
 
   return {
     readiness: "LOW" as HedgeReadiness,
     explanation:
-      "Volatility is subdued and price action is relatively stable. Near-term FX risk is limited; hedge readiness can be low with routine monitoring.",
+      "Volatility is low and price action is stable. Hedge readiness can remain low with routine monitoring. Maintain standard oversight and review exposures on your regular schedule.",
   };
 }
 
@@ -554,9 +554,7 @@ export default function BriefsClient() {
               Generator
             </span>
           </div>
-          <p className="mt-2 text-sm text-white/60">
-            Pick a period → generate an FX Risk Summary report.
-          </p>
+          <p className="mt-2 text-sm text-white/60">Pick a period → generate an FX Risk Summary report.</p>
         </div>
 
         <div className="flex flex-wrap items-end gap-3">
@@ -687,9 +685,7 @@ export default function BriefsClient() {
               ) : null}
             </div>
 
-            {report?.data?.points?.length ? (
-              <Sparkline points={report.data.points.map((p) => ({ rate: p.rate }))} />
-            ) : null}
+            {report?.data?.points?.length ? <Sparkline points={report.data.points.map((p) => ({ rate: p.rate }))} /> : null}
 
             <div className="mt-4 rounded-2xl bg-black/20 p-4 ring-1 ring-white/10">
               <div className="text-sm font-semibold text-white">Quick Facts</div>
@@ -835,9 +831,58 @@ export default function BriefsClient() {
                   This range reflects the level of uncertainty priced into the FX market today.
                 </div>
               </div>
+
+              <div className="mt-4 rounded-2xl bg-black/20 p-4 ring-1 ring-white/10">
+                <div className="flex items-center justify-between">
+                  <div className="text-sm font-semibold text-white">Budget Impact</div>
+                  <span className="rounded-full bg-white/5 px-2.5 py-1 text-xs text-white/70 ring-1 ring-white/10">
+                    30 Days
+                  </span>
+                </div>
+
+                <div className="mt-3 flex flex-col gap-3">
+                  <div className="grid gap-1">
+                    <div className="text-xs text-white/60">USD Exposure</div>
+                    <input
+                      value={Number.isFinite(usdExposure) ? String(usdExposure) : ""}
+                      onChange={(e) => {
+                        const raw = e.target.value.replace(/,/g, "").trim();
+                        if (raw === "") {
+                          setUsdExposure(0);
+                          return;
+                        }
+                        const n = Number(raw);
+                        if (!Number.isFinite(n)) return;
+                        setUsdExposure(Math.max(0, n));
+                      }}
+                      inputMode="numeric"
+                      className="h-10 rounded-xl bg-white/5 px-3 text-sm text-white ring-1 ring-white/10 outline-none focus:ring-white/20"
+                      placeholder="2000000"
+                    />
+                  </div>
+
+                  <div className="grid gap-1">
+                    <div className="text-xs text-white/60">At current rate</div>
+                    <div className="text-sm font-semibold text-white">{report ? fmtMoneyPHP(treasury?.phpAtSpot ?? 0) : "N/A"}</div>
+                  </div>
+
+                  <div className="grid gap-1">
+                    <div className="text-xs text-white/60">At implied upper bound</div>
+                    <div className="text-sm font-semibold text-white">
+                      {treasury?.phpAtUpper == null ? "N/A" : fmtMoneyPHP(treasury.phpAtUpper)}
+                    </div>
+                  </div>
+
+                  <div className="grid gap-1">
+                    <div className="text-xs text-white/60">Potential FX swing</div>
+                    <div className="text-sm font-semibold text-white">
+                      {treasury?.swing == null ? "N/A" : `≈ ${fmtMoneyPHP(treasury.swing)}`}
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
           </aside>
-
           <main className="p-6">
             <div className="rounded-2xl bg-black/20 p-5 ring-1 ring-white/10">
               <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
@@ -907,9 +952,7 @@ export default function BriefsClient() {
                 </div>
               )}
 
-              <p className="mt-3 text-sm leading-relaxed text-white/70">
-                {report?.narrative.regimeInterpretation.body ?? ""}
-              </p>
+              <p className="mt-3 text-sm leading-relaxed text-white/70">{report?.narrative.regimeInterpretation.body ?? ""}</p>
             </div>
 
             {report && hedge && (
@@ -978,7 +1021,7 @@ export default function BriefsClient() {
                   )}
                 </div>
 
-                <div className="mt-4 grid gap-3 md:grid-cols-2">
+                <div className="mt-4 grid gap-3">
                   <div className="rounded-2xl bg-white/[0.03] p-5 ring-1 ring-white/10">
                     <div className="flex items-center justify-between">
                       <div className="text-sm font-semibold text-white">Implied % Move</div>
@@ -987,67 +1030,39 @@ export default function BriefsClient() {
                       </span>
                     </div>
 
-                    <div className="mt-3 text-2xl font-semibold text-white">
+                    <div className="mt-3 text-3xl font-semibold text-white">
                       {treasury?.impliedMovePct == null ? "N/A" : `±${fmtPct(treasury.impliedMovePct, 2)}`}
                     </div>
 
                     <div className="mt-2 text-sm text-white/70">
                       Based on current volatility, USD/PHP typically moves about{" "}
-                      {treasury?.impliedMovePct == null ? "N/A" : `±${fmtPct(treasury.impliedMovePct, 2)}`} over 30
-                      days.
-                    </div>
-                  </div>
-
-                  <div className="rounded-2xl bg-white/[0.03] p-5 ring-1 ring-white/10">
-                    <div className="flex items-center justify-between">
-                      <div className="text-sm font-semibold text-white">Budget Impact</div>
-                      <span className="rounded-full bg-white/5 px-2.5 py-1 text-xs text-white/70 ring-1 ring-white/10">
-                        30 Days
-                      </span>
+                      {treasury?.impliedMovePct == null ? "N/A" : `±${fmtPct(treasury.impliedMovePct, 2)}`} over 30 days.
                     </div>
 
-                    <div className="mt-3 flex flex-col gap-3">
-                      <div className="grid gap-1">
-                        <div className="text-xs text-white/60">USD Exposure</div>
-                        <input
-                          value={Number.isFinite(usdExposure) ? String(usdExposure) : ""}
-                          onChange={(e) => {
-                            const raw = e.target.value.replace(/,/g, "").trim();
-                            if (raw === "") {
-                              setUsdExposure(0);
-                              return;
-                            }
-                            const n = Number(raw);
-                            if (!Number.isFinite(n)) return;
-                            setUsdExposure(Math.max(0, n));
-                          }}
-                          inputMode="numeric"
-                          className="h-10 rounded-xl bg-white/5 px-3 text-sm text-white ring-1 ring-white/10 outline-none focus:ring-white/20"
-                          placeholder="2000000"
-                        />
-                      </div>
-
-                      <div className="grid gap-1">
-                        <div className="text-xs text-white/60">At current rate</div>
-                        <div className="text-sm font-semibold text-white">
-                          {report ? fmtMoneyPHP(treasury?.phpAtSpot ?? 0) : "N/A"}
+                    <div className="mt-4 grid gap-3 sm:grid-cols-3">
+                      <div className="rounded-2xl bg-black/20 p-4 ring-1 ring-white/10">
+                        <div className="text-xs text-white/60">Signal</div>
+                        <div className="mt-1 text-sm font-semibold text-white">
+                          {treasury?.signal ? treasurySignalLabel(treasury.signal) : "N/A"}
                         </div>
                       </div>
 
-                      <div className="grid gap-1">
-                        <div className="text-xs text-white/60">At implied upper bound</div>
-                        <div className="text-sm font-semibold text-white">
-                          {treasury?.phpAtUpper == null ? "N/A" : fmtMoneyPHP(treasury.phpAtUpper)}
+                      <div className="rounded-2xl bg-black/20 p-4 ring-1 ring-white/10">
+                        <div className="text-xs text-white/60">Lower bound</div>
+                        <div className="mt-1 text-sm font-semibold text-white">
+                          {treasury?.lower == null ? "N/A" : `₱${treasury.lower.toFixed(2)}`}
                         </div>
                       </div>
 
-                      <div className="grid gap-1">
-                        <div className="text-xs text-white/60">Potential FX swing</div>
-                        <div className="text-sm font-semibold text-white">
-                          {treasury?.swing == null ? "N/A" : `≈ ${fmtMoneyPHP(treasury.swing)}`}
+                      <div className="rounded-2xl bg-black/20 p-4 ring-1 ring-white/10">
+                        <div className="text-xs text-white/60">Upper bound</div>
+                        <div className="mt-1 text-sm font-semibold text-white">
+                          {treasury?.upper == null ? "N/A" : `₱${treasury.upper.toFixed(2)}`}
                         </div>
                       </div>
                     </div>
+
+                    <div className="mt-3 text-xs text-white/55">This is a risk envelope, not a forecast.</div>
                   </div>
                 </div>
 
