@@ -371,11 +371,12 @@ export default function ImpactMode({ latestRate }: Props) {
               <div className="text-xs font-semibold text-white/60">SET YOUR SPENDING</div>
 
               <div className="mt-2 text-sm leading-6 text-white/70">
-                <span className="text-white font-semibold">What is "USD exposure"?</span>{" "}
-                It's the part of this expense that usually follows the dollar (imports, USD pricing, card FX conversion).
-                <span className="text-white font-semibold"> Drag the exposure slider</span>{" "}
-                to tell Peso Pilot how "USD-linked" this spending is and watch the live results update.
-              </div>
+            What is <span className="text-white font-semibold">USD exposure</span>?
+            {" "}It measures the share of the expenses that is sensitive to USD movements (e.g., imports, USD pricing, card FX).
+            <span className="text-white font-semibold"> Drag the exposure slider</span>{" "}
+            to tell Peso Pilot how "USD-linked" this spending is and watch the live results update.
+          </div>
+
 
               <div className="mt-4 space-y-4">
                 {(Object.keys(buckets) as BucketKey[]).map((k) => {
@@ -450,9 +451,10 @@ export default function ImpactMode({ latestRate }: Props) {
 
             {/* deeper explanations */}
             <div className="rounded-2xl border border-white/10 bg-white/5 p-4 sm:p-5">
-              <div className="text-xs font-semibold text-white/60">WHY THESE MOVE</div>
+              <div className="text-xs font-semibold text-white/60">LIVE RESULTS & WHY THESE MOVE</div>
               <div className="mt-2 text-sm text-white/70">
-                When the dollar strengthens or weakens, it changes how much the Philippines pays for imported goods and services priced in USD. Items we rely on from abroad (like fuel, food, etc) usually feel the impact first, while locally sourced expenses move more slowly. This section shows where exchange rate changes are most likely to show up in everyday spending
+                This section highlights where exchange rate movements are likely to impact everyday spending.
+USD fluctuations affect the cost of imports and USD-denominated expenses. Items reliant on foreign pricing such as fuel or food, are most sensitive, while local expenses adjust more slowly. 
               </div>
 
               <div className="mt-4 space-y-4">

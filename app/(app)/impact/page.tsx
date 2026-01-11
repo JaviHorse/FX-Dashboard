@@ -165,7 +165,7 @@ export default async function ImpactPage() {
           </div>
 
           <div className="mt-4 text-xs text-white/60">
-            Tip: This card’s glow and badge color update automatically when new BSP data lands (bigger moves → stronger glow).
+            Tip: This card’s color update automatically when new BSP data land.
           </div>
         </div>
 
