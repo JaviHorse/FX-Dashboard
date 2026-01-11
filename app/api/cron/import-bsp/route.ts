@@ -6,7 +6,6 @@ import { PrismaClient } from "@prisma/client";
 
 const prisma = new PrismaClient();
 
-// IMPORTANT: don't name this "URL" because it breaks `new URL(req.url)`
 const BSP_URL = "https://www.bsp.gov.ph/statistics/external/day99_data.aspx";
 const PAIR = "USD/PHP";
 
@@ -64,13 +63,7 @@ function getManilaTodayEndUtc(): Date {
 export async function GET(req: Request) {
   try {
     const urlObj = new URL(req.url);
-
-    // ✅ FIX: Vercel Cron auth (no query-string env expansion needed)
-    // Vercel Cron sends header: x-vercel-cron: 1
     const isVercelCron = req.headers.get("x-vercel-cron") === "1";
-
-    // Optional manual trigger support:
-    // /api/cron/import-bsp?secret=YOUR_SECRET
     const secret = process.env.CRON_SECRET;
     const got = urlObj.searchParams.get("secret");
 
@@ -101,8 +94,6 @@ export async function GET(req: Request) {
     if (!rows.length) throw new Error("No rows found.");
 
     const cutoffUtc = getManilaTodayEndUtc();
-
-    // 1) Find header row (must contain "Date" + month labels)
     let headerRowIndex = -1;
     let headerRawTrimmed: string[] = [];
 
@@ -152,7 +143,7 @@ export async function GET(req: Request) {
         .map((_, el) => $(el).text())
         .get() as string[];
 
-      const rawCells = trimAll(raw); // KEEP BLANKS
+      const rawCells = trimAll(raw);
       if (!rawCells.length) continue;
 
       const dayText = rawCells[datePos] ?? "";
