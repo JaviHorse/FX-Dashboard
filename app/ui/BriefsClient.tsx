@@ -580,12 +580,12 @@ export default function BriefsClient() {
 
           <button
             onClick={generate}
-            disabled={!canGenerate || loading}
+              disabled={!canGenerate || loading}
             className={cn(
-              "h-10 rounded-xl px-4 text-sm font-medium ring-1 transition",
+              "h-10 rounded-xl px-4 text-sm font-medium ring-1 transition relative",
               loading || !canGenerate
                 ? "cursor-not-allowed bg-white/5 text-white/40 ring-white/10"
-                : "bg-white/10 text-white ring-white/15 hover:bg-white/15"
+                : "bg-emerald-500/15 text-emerald-100 ring-emerald-400/30 hover:bg-emerald-500/20 shadow-[0_0_18px_rgba(16,185,129,0.35)] hover:shadow-[0_0_26px_rgba(16,185,129,0.5)]"
             )}
           >
             {loading ? "Generating..." : "Generate FX Brief"}
