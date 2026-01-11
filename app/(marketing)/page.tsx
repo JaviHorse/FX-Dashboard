@@ -101,9 +101,9 @@ export default async function HomePage() {
           </h1>
 
           <p className="mt-5 max-w-2xl text-sm leading-6 text-white/70 text-justify">
-            PesoPilot analyzes USD/PHP using official BSP data to provide a structured view of peso risk over time.
+            Peso Pilot analyzes USD/PHP using official BSP data to provide a structured view of peso risk over time.
             It measures volatility, drawdowns, and regime shifts to distinguish normal market movement from periods of elevated stress.
-            By translating these patterns into forward-looking ranges and real-world cost impacts, PesoPilot shows how potential
+            By translating these patterns into forward-looking ranges and real-world cost impacts, Peso Pilot shows how potential
             peso/dollar moves could affect everyday expenses and exposures.
           </p>
 
