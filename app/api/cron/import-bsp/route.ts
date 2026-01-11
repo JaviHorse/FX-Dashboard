@@ -15,8 +15,18 @@ function parseMonthYear(label: string): { month: number; year: number } | null {
   if (!m) return null;
 
   const monthMap: Record<string, number> = {
-    Jan: 1, Feb: 2, Mar: 3, Apr: 4, May: 5, Jun: 6,
-    Jul: 7, Aug: 8, Sep: 9, Oct: 10, Nov: 11, Dec: 12,
+    Jan: 1,
+    Feb: 2,
+    Mar: 3,
+    Apr: 4,
+    May: 5,
+    Jun: 6,
+    Jul: 7,
+    Aug: 8,
+    Sep: 9,
+    Oct: 10,
+    Nov: 11,
+    Dec: 12,
   };
 
   const key = m[1][0].toUpperCase() + m[1].slice(1, 3).toLowerCase();
@@ -47,6 +57,7 @@ function getManilaTodayEndUtc(): Date {
   const m = Number(parts.find((p) => p.type === "month")?.value);
   const d = Number(parts.find((p) => p.type === "day")?.value);
 
+  // Manila 23:59:59.999 ~= UTC 15:59:59.999 (Manila is UTC+8)
   return new Date(Date.UTC(y, m - 1, d, 15, 59, 59, 999));
 }
 
@@ -54,10 +65,17 @@ export async function GET(req: Request) {
   try {
     const urlObj = new URL(req.url);
 
+    // ✅ FIX: Vercel Cron auth (no query-string env expansion needed)
+    // Vercel Cron sends header: x-vercel-cron: 1
+    const isVercelCron = req.headers.get("x-vercel-cron") === "1";
+
+    // Optional manual trigger support:
+    // /api/cron/import-bsp?secret=YOUR_SECRET
     const secret = process.env.CRON_SECRET;
-    if (secret) {
-      const got = urlObj.searchParams.get("secret");
-      if (got !== secret) {
+    const got = urlObj.searchParams.get("secret");
+
+    if (!isVercelCron) {
+      if (!secret || got !== secret) {
         return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });
       }
     }
@@ -135,7 +153,6 @@ export async function GET(req: Request) {
         .get() as string[];
 
       const rawCells = trimAll(raw); // KEEP BLANKS
-
       if (!rawCells.length) continue;
 
       const dayText = rawCells[datePos] ?? "";
@@ -197,17 +214,12 @@ export async function GET(req: Request) {
       datePos,
       parsedMonths: monthCount,
       cutoffUtc: cutoffUtc.toISOString(),
-      debug, // includes days 6 & 7 row snapshots
+      debug,
     });
   } catch (e: any) {
     console.error("❌ import-bsp cron failed:", e);
-    return NextResponse.json(
-      { ok: false, error: e?.message ?? "Unknown error" },
-      { status: 500 }
-    );
+    return NextResponse.json({ ok: false, error: e?.message ?? "Unknown error" }, { status: 500 });
   } finally {
-    // Prisma in serverless is often reused; disconnecting is optional.
-    // Keeping it here is fine if you're not using Prisma Accelerate.
     await prisma.$disconnect().catch(() => {});
   }
 }
