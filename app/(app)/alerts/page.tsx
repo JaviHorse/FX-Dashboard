@@ -146,7 +146,15 @@ function MiniMetric({
   );
 }
 
-function RangeMetric({ fromISO, toISO }: { fromISO: string | null; toISO: string | null }) {
+/** FIX: prevent "Duplicate identifier fromISO" + keep props clean */
+type RangeMetricProps = {
+  fromISO: string | null;
+  toISO: string | null;
+};
+
+function RangeMetric(props: RangeMetricProps) {
+  const { fromISO, toISO } = props;
+
   const has = Boolean(fromISO && toISO);
   const full = has ? `${fromISO} → ${toISO}` : "— → —";
 
@@ -311,6 +319,7 @@ function explainRecent(a: AlertItem) {
 
   return { what, why, action };
 }
+
 export default function AlertsPage() {
   const [points, setPoints] = useState<ApiPoint[]>([]);
   const [loading, setLoading] = useState(true);
@@ -449,7 +458,8 @@ export default function AlertsPage() {
             </div>
 
             <div className="mt-2 max-w-2xl text-sm text-slate-300/90 mx-auto sm:mx-0">
-              Alerts activate on material FX moves such as risk spikes or atypical market shifts, not routine daily changes. 
+              Alerts activate on material FX moves such as risk spikes or atypical market shifts, not routine daily
+              changes.
             </div>
           </div>
 
@@ -575,8 +585,10 @@ export default function AlertsPage() {
           </div>
         </div>
 
-        <div className="mt-6 grid gap-6 lg:grid-cols-[1.55fr_1fr]">
-          <div className="rounded-3xl bg-white/[0.04] p-5 sm:p-6 ring-1 ring-white/10 w-full max-w-3xl mx-auto lg:max-w-none">
+        {/* FIX: remove max-w-3xl/mx-auto clamps that make the left + right columns look “off”.
+            Also add items-start and min-w-0 so both columns align and don’t overflow. */}
+        <div className="mt-6 grid gap-6 lg:grid-cols-[1.55fr_1fr] items-start">
+          <div className="rounded-3xl bg-white/[0.04] p-5 sm:p-6 ring-1 ring-white/10 w-full min-w-0">
             <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 sm:gap-4 text-center sm:text-left">
               <div>
                 <div className="text-xl font-semibold text-slate-100">Alert Feed</div>
@@ -729,9 +741,7 @@ export default function AlertsPage() {
                             </span>
                             <div className="min-w-0">
                               <div className="text-sm font-semibold text-slate-100 truncate">{a.title}</div>
-                              <div className="mt-1 text-xs text-slate-300">
-                                {mounted ? fmtLocal(a.timestampISO) : ""}
-                              </div>
+                              <div className="mt-1 text-xs text-slate-300">{mounted ? fmtLocal(a.timestampISO) : ""}</div>
                             </div>
                           </div>
                         </div>
@@ -759,7 +769,7 @@ export default function AlertsPage() {
             </div>
           </div>
 
-          <div className="space-y-6 w-full max-w-3xl mx-auto lg:max-w-none">
+          <div className="space-y-6 w-full min-w-0">
             <div className="rounded-3xl bg-white/[0.04] p-5 sm:p-6 ring-1 ring-white/10 text-center sm:text-left">
               <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 sm:gap-4">
                 <div>
@@ -880,7 +890,9 @@ export default function AlertsPage() {
               </div>
 
               <div className="mt-4 rounded-2xl bg-white/[0.03] p-4 ring-1 ring-white/10 text-sm text-slate-200 text-center sm:text-left">
-                <span className="font-semibold text-slate-100">Practical read:</span> When the exchange rate stays within the typical range (±1σ), alerts remain minimal. When it goes past the unusual territory(±2σ), it indicates elevated FX risk and triggers alerts.
+                <span className="font-semibold text-slate-100">Practical read:</span> When the exchange rate stays within
+                the typical range (±1σ), alerts remain minimal. When it goes past the unusual territory(±2σ), it
+                indicates elevated FX risk and triggers alerts.
               </div>
             </div>
           </div>
