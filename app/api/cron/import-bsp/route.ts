@@ -1,4 +1,3 @@
-// app/api/cron/import-bsp/route.ts
 import { NextResponse } from "next/server";
 import axios from "axios";
 import * as cheerio from "cheerio";
@@ -90,10 +89,18 @@ async function fetchBspHtmlWithRetry() {
 
 export async function GET(req: Request) {
   try {
-    const isVercelCron = req.headers.get("x-vercel-cron") === "1";
+    const urlObj = new URL(req.url);
+
+    const ua = (req.headers.get("user-agent") ?? "").toLowerCase();
+    const isVercelCron = ua.includes("vercel-cron/1.0");
+
+    const secret = process.env.CRON_SECRET;
+    const got = urlObj.searchParams.get("secret");
 
     if (!isVercelCron) {
-      return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });
+      if (!secret || got !== secret) {
+        return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });
+      }
     }
 
     const beforeLatest = await prisma.exchangeRate.findFirst({
@@ -146,9 +153,6 @@ export async function GET(req: Request) {
 
     let upserts = 0;
 
-    const debugDays = new Set([6, 7]);
-    const debug: any[] = [];
-
     for (let r = headerRowIndex + 1; r < rows.length; r++) {
       const row = rows[r] as any;
 
@@ -166,15 +170,6 @@ export async function GET(req: Request) {
 
       const rates = rawCells.slice(datePos + 1, datePos + 1 + monthsByIndex.length);
       if (!rates.length) continue;
-
-      if (debugDays.has(day)) {
-        debug.push({
-          day,
-          rawCells,
-          rates,
-          monthsByIndexLength: monthsByIndex.length,
-        });
-      }
 
       for (let i = 0; i < rates.length && i < monthsByIndex.length; i++) {
         const ym = monthsByIndex[i];
@@ -207,6 +202,8 @@ export async function GET(req: Request) {
 
     return NextResponse.json({
       ok: true,
+      source: isVercelCron ? "cron" : "manual",
+      now: new Date().toISOString(),
       upserts,
       latestInDb: afterLatest?.date?.toISOString() ?? null,
       latestRate: afterLatest?.rate ?? null,
@@ -216,7 +213,6 @@ export async function GET(req: Request) {
       datePos,
       parsedMonths: monthCount,
       cutoffUtc: cutoffUtc.toISOString(),
-      debug,
     });
   } catch (e: any) {
     console.error("import-bsp cron failed:", e);
