@@ -1,7 +1,7 @@
 {
   "crons": [
     {
-      "path": "/api/cron/import-bsp",
+      "path": "/api/cron/import-bsp?secret=@cron_secret",
       "schedule": "30 11 * * 1-5"
     }
   ]
