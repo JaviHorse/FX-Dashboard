@@ -1,3 +1,4 @@
+// app/api/cron/import-bsp/route.ts
 import { NextResponse } from "next/server";
 import axios from "axios";
 import * as cheerio from "cheerio";
@@ -88,19 +89,28 @@ async function fetchBspHtmlWithRetry() {
 }
 
 export async function GET(req: Request) {
+  let requestSource: "CRON" | "MANUAL" | "UNAUTHORIZED" = "UNAUTHORIZED";
+
   try {
     const urlObj = new URL(req.url);
 
-    const ua = (req.headers.get("user-agent") ?? "").toLowerCase();
-    const isVercelCron = ua.includes("vercel-cron/1.0");
+    const cronSecret = process.env.CRON_SECRET;
+    if (!cronSecret) {
+      console.error("[BSP Import] CRON_SECRET not configured");
+      return NextResponse.json({ ok: false, error: "Server configuration error" }, { status: 500 });
+    }
 
-    const secret = process.env.CRON_SECRET;
-    const got = urlObj.searchParams.get("secret");
+    const authHeader = req.headers.get("authorization");
+    const isValidCron = authHeader === `Bearer ${cronSecret}`;
 
-    if (!isVercelCron) {
-      if (!secret || got !== secret) {
-        return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });
-      }
+    const querySecret = urlObj.searchParams.get("secret");
+    const isValidManual = querySecret === cronSecret;
+
+    requestSource = isValidCron ? "CRON" : isValidManual ? "MANUAL" : "UNAUTHORIZED";
+    console.log(`[BSP Import] Request from: ${requestSource}`);
+
+    if (!isValidCron && !isValidManual) {
+      return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });
     }
 
     const beforeLatest = await prisma.exchangeRate.findFirst({
@@ -202,7 +212,7 @@ export async function GET(req: Request) {
 
     return NextResponse.json({
       ok: true,
-      source: isVercelCron ? "cron" : "manual",
+      source: requestSource,
       now: new Date().toISOString(),
       upserts,
       latestInDb: afterLatest?.date?.toISOString() ?? null,
