@@ -91,14 +91,11 @@ async function fetchBspHtmlWithRetry() {
 export async function GET(req: Request) {
   try {
     const urlObj = new URL(req.url);
-    const isVercelCron = req.headers.get("x-vercel-cron") === "1";
     const secret = process.env.CRON_SECRET;
     const got = urlObj.searchParams.get("secret");
 
-    if (!isVercelCron) {
-      if (!secret || got !== secret) {
-        return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });
-      }
+    if (secret && got !== secret) {
+      return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });
     }
 
     const beforeLatest = await prisma.exchangeRate.findFirst({
