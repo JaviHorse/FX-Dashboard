@@ -90,11 +90,9 @@ async function fetchBspHtmlWithRetry() {
 
 export async function GET(req: Request) {
   try {
-    const urlObj = new URL(req.url);
-    const secret = process.env.CRON_SECRET;
-    const got = urlObj.searchParams.get("secret");
+    const isVercelCron = req.headers.get("x-vercel-cron") === "1";
 
-    if (secret && got !== secret) {
+    if (!isVercelCron) {
       return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });
     }
 
