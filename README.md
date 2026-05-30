@@ -1,10 +1,10 @@
-# 💱 Peso Pilot — USD/PHP Foreign Exchange Analytics Dashboard
+# Peso Pilot — USD/PHP Foreign Exchange Analytics Dashboard
 
 A modern, full-stack foreign exchange analytics platform built with **Next.js**, **TypeScript**, **PostgreSQL**, and **Prisma** that automatically ingests official USD/PHP exchange rates from the **Bangko Sentral ng Pilipinas (BSP)** and transforms them into an interactive analytics dashboard.
 
 ---
 
-## 🚀 Overview
+## Overview
 
 Peso Pilot is a data-driven FX dashboard designed to provide historical and real-time insights into the Philippine Peso (PHP) against the US Dollar (USD).
 
@@ -19,9 +19,9 @@ The platform automatically:
 
 ---
 
-## ✨ Features
+## Features
 
-### 📊 Interactive Dashboard
+### Interactive Dashboard
 
 - Dark Mode / Light Mode toggle
 - Responsive UI
@@ -38,7 +38,7 @@ The platform automatically:
 
 ---
 
-### 📈 FX Analytics
+### FX Analytics
 
 Monitor:
 
@@ -51,7 +51,7 @@ Monitor:
 
 ---
 
-### 🔄 Automated BSP Data Pipeline
+### Automated BSP Data Pipeline
 
 The application ingests data directly from:
 
@@ -69,7 +69,7 @@ The pipeline:
 
 ---
 
-## 🏗 Architecture
+## Architecture
 
 ```text
 ┌─────────────────────┐
@@ -106,7 +106,7 @@ The pipeline:
 
 ---
 
-# 🛠 Technology Stack
+# Technology Stack
 
 ### Frontend
 
@@ -138,7 +138,7 @@ The pipeline:
 
 ---
 
-# 📂 Project Structure
+# Project Structure
 
 ```text
 fx-dashboard/
@@ -170,7 +170,7 @@ fx-dashboard/
 
 ---
 
-# 🗄 Database Schema
+# Database Schema
 
 ```prisma
 model ExchangeRate {
@@ -200,7 +200,7 @@ Guarantees that:
 
 ---
 
-# 📥 Data Ingestion
+# Data Ingestion
 
 The scraper:
 
@@ -280,7 +280,7 @@ prisma.exchangeRate.upsert(...)
 
 ---
 
-# 🌐 API Endpoints
+# API Endpoints
 
 ## Latest Rate
 
@@ -343,7 +343,7 @@ GET /api/rates/range?start=2025-01-01&end=2025-06-01
 
 ---
 
-# 📊 Dashboard Metrics
+# Dashboard Metrics
 
 Current dashboard computes:
 
@@ -373,7 +373,7 @@ Maximum value within selected period.
 
 ---
 
-# 🎨 Dashboard Features
+# Dashboard Features
 
 ### Theme Switching
 
@@ -426,7 +426,7 @@ Example:
 
 ---
 
-# ⚡ Performance Considerations
+# Performance Considerations
 
 ### No Duplicate Records
 
@@ -476,7 +476,7 @@ errors.
 
 ---
 
-# 🔮 Planned Features
+# Planned Features
 
 ## Forecasting Engine
 
@@ -550,7 +550,7 @@ without manual intervention.
 
 ---
 
-# 🚀 Getting Started
+# Getting Started
 
 ## Clone Repository
 
@@ -612,7 +612,7 @@ http://localhost:3000
 
 ---
 
-# 📸 Screenshots
+# Screenshots
 
 (Add screenshots here once deployed)
 
@@ -623,7 +623,7 @@ http://localhost:3000
 ---
 
 
-# 📄 License
+# License
 
 This project is licensed under the MIT License.
 
