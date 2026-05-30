@@ -555,7 +555,7 @@ without manual intervention.
 ## Clone Repository
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/fx-dashboard.git
+git clone https://github.com/JaviHorse/fx-dashboard.git
 ```
 
 ## Install Dependencies
